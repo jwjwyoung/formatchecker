@@ -285,14 +285,12 @@ class Version_class
         elsif v.instance_of? Format_constraint
           model_present_db_absent << { :name => k, :category => :format, :value => v }
         elsif v.instance_of? Inclusion_constraint or v.instance_of? Exclusion_constraint
-          puts "Inclusion #{v.to_string} #{column.column_type}"
+          #puts "Inclusion #{v.to_string} #{column.column_type}"
           begin
-            if v.range and eval(v.range) == [true, false] and column.column_type == "boolean"
-            else
-              model_present_db_absent << { :name => k, :category => :inclusion_exclusion, :value => v }
-            end
+            next if v.range and eval(v.range) == [true, false] and column.column_type == "boolean"
           rescue
           end
+          model_present_db_absent << { :name => k, :category => :inclusion_exclusion, :value => v }
         elsif v.instance_of? Uniqueness_constraint
           model_present_db_absent << { :name => k, :category => :unique, :value => v }
           #elsif v.instance_of?Customized_constraint or v.instance_of?Function_constraint
