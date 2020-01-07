@@ -29,7 +29,9 @@ OptionParser.new do |opts|
     options[:app] = v
     puts "v #{v}"
   end
-
+  opts.on("-c", "--commit commit", "please specify which commit for parse single version (default is master)") do |v|
+    options[:commit] = v
+  end
   opts.on("-i", "--interval interval", "please specify interval") do |v|
     options[:interval] = v.to_i
   end
@@ -113,7 +115,11 @@ if options[:custom_change] and options[:app] and interval
 end
 
 if options[:single] and options[:app]
-  find_mismatch_oneversion(options[:app])
+  if options[:commit]
+    find_mismatch_oneversion(options[:app], options[:commit])
+  else
+    find_mismatch_oneversion(options[:app])
+  end
 end
 if options[:mismatch] and options[:app]
   puts "interval parse: #{interval.class.name}"

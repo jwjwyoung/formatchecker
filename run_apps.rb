@@ -1,3 +1,5 @@
+args = ARGV
+
 def header_line(command)
 	header_line = ""
 	if command == '-l'
@@ -8,12 +10,21 @@ def header_line(command)
 	end
 	return header_line
 end
+
 apps = open('app_names.txt').readlines
 apps = apps.map{|x| x.strip}
+
+commit_index = {}
+if args.include? "--commit-index"
+  commit_index = Hash[open("app_with_commit.txt").readlines.map{|x| x.strip.split("\t")}]
+  args -= ["--commit-index"]
+end
+
 main_folder = 'constraint_analyzer'
 app_folder = '../apps'
-command = ARGV[0] || "-s"
+command = args[0] || "-s"
 return unless app_folder
+
 count = {}
 log = open("log/output.log",'w')
 header_line = header_line(command)
@@ -22,6 +33,11 @@ apps.each do |app|
 	if app.start_with?'#'
 		next
 	end
+
+    if commit_index[app]
+      command += " --commit #{commit_index[app]}"
+    end
+
 	execute = "cd #{main_folder}; ruby main.rb -a #{app_folder}/#{app} #{command}"
 	puts "#{execute}"
 	lines = `#{execute}`
