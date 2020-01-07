@@ -63,7 +63,6 @@ def checkConstraints(output)
 				break
 			end
 			if line.start_with?"+"
-<<<<<<< HEAD
 				begin
 					str = line[1..-1].strip
 					add[str] = true

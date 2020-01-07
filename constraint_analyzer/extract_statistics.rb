@@ -403,7 +403,6 @@ def find_all_mismatch(application_dir, interval)
   end
 end
 
-# in latest version
 def find_mismatch_oneversion(directory, commit = "master")
   `cd #{directory}; git checkout -f #{commit}`
   version = Version_class.new(directory, commit)

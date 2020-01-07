@@ -22,7 +22,7 @@ load_validate_api # load the model api
 load_html_constraint_api #load the html api
 options = {}
 OptionParser.new do |opts|
-  opts.banner = "Usage: example.rb [options]"
+  opts.banner = "Usage: main.rb -a APP_DIR [options]"
 
   opts.on("-a", "--app app", "please specify application dir") do |v|
     options[:app] = v

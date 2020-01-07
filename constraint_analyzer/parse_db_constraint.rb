@@ -4,7 +4,6 @@ def parse_db_constraint_file(ast)
       parse_db_constraint_file(child)
     end
   end
-  # TODO: need to be refactored too messy. Done
   if ast.type.to_s == "call"
     if ast[-1]&.type&.to_s == "do_block"
       parse_db_constraint_file(ast[-1][-1])
