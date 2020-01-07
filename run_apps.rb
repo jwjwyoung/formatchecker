@@ -25,9 +25,9 @@ apps.each do |app|
 	execute = "cd #{main_folder}; ruby main.rb -a #{app_folder}/#{app} #{command}"
 	puts "#{execute}"
 	lines = `#{execute}`
-	#log.write("======#{app}======\n")
-	#log.write(lines)
-	#log.write("\n")
+	log.write("======#{app}======\n")
+	log.write(lines)
+	log.write("\n")
 	
 	lines = lines.lines
 	absent_total = lines[-1].strip
