@@ -18,7 +18,6 @@ require "active_support"
 require "active_support/inflector"
 require "active_support/core_ext/string"
 require "regexp-examples"
-application_dir = "/Users/jwy/Research/lobsters-ori/"
 load_validate_api # load the model api
 load_html_constraint_api #load the html api
 options = {}
@@ -87,15 +86,18 @@ end.parse!
 $read_html = true
 $read_db = true
 
-if options[:app]
-  application_dir = options[:app]
-  puts "application_dir #{application_dir}"
+if !options[:app]
+  abort("Error: you must specify an application directory with the -a/--app option")
 end
+
+application_dir = options[:app]
+puts "application_dir #{application_dir}"
+
 interval = 1
 if options[:interval]
   interval = options[:interval].to_i
 end
-if options[:tva] and options[:app] and interval
+if options[:tva] and interval
   $read_html = false
   puts "travese_all_versions start options[:commit_unit] #{options[:commit_unit]}"
   if options[:commit_unit]
@@ -105,7 +107,7 @@ if options[:tva] and options[:app] and interval
   end
 end
 
-if options[:custom_change] and options[:app] and interval
+if options[:custom_change] and interval
   puts "traverse to see custom change  options[:commit_unit] #{options[:commit_unit]}"
   if options[:commit_unit]
     traverse_for_custom_validation(application_dir, interval, false)
@@ -114,53 +116,53 @@ if options[:custom_change] and options[:app] and interval
   end
 end
 
-if options[:single] and options[:app]
+if options[:single]
   if options[:commit]
     find_mismatch_oneversion(options[:app], options[:commit])
   else
     find_mismatch_oneversion(options[:app])
   end
 end
-if options[:mismatch] and options[:app]
+if options[:mismatch]
   puts "interval parse: #{interval.class.name}"
   find_all_mismatch(options[:app], interval)
 end
-if options[:latest] and application_dir
+if options[:latest]
   current_version_constraints_num(application_dir)
 end
-if options[:fln] and application_dir
+if options[:fln]
   first_last_version_comparison_on_num(application_dir)
 end
-if options[:api_breakdown] and application_dir
+if options[:api_breakdown]
   api_breakdown(application_dir)
 end
-if options[:custom_error_msg] and application_dir
+if options[:custom_error_msg]
   custom_error_msg_info(application_dir)
 end
 
-if options[:curve] and application_dir
+if options[:curve]
   interval = 100
   puts "interval #{interval}"
   traverse_constraints_code_curve(application_dir, interval, false)
 end
 
-if options[:pvf] and application_dir
+if options[:pvf]
   puts "print validation function"
   print_validate_functions(application_dir)
 end
 
-if options[:commit_hash] and application_dir
+if options[:commit_hash]
   puts `cd #{application_dir}; git rev-parse HEAD`
 end
 
-if options[:count_commits] and application_dir
+if options[:count_commits]
   count_average_commits_between_releases(application_dir)
 end
 
-if options[:destroy] and application_dir
+if options[:destroy]
   count_non_destroy(application_dir)
 end
-if options[:if_checking] and application_dir
+if options[:if_checking]
   $read_html = false
   $read_db = false
   $if_output = open("../log/ifcheck.txt", "a")
