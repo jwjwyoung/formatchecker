@@ -300,22 +300,23 @@ class Version_class
         end
       end
     end
-
-    puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tself_satisfied\t#{db_present_model_absent.select { |v| v[:category] == :self_satisfied }.count}"
-    puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tfk\t#{db_present_model_absent.select { |v| v[:category] == :fk }.count}"
-    puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tstr_unlimited\t#{db_present_model_absent.select { |v| v[:category] == :str_unlimited }.count}"
-    puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tnot_accessed\t#{db_present_model_absent.select { |v| v[:category] == :not_accessed }.count}"
-    puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tother\t#{db_present_model_absent.select { |v| v[:category] == :other }.count}"
+    
+    puts "absent_category_count\tAppName\tAbsenceType\tCategory\tCount"
+    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tself_satisfied\t#{db_present_model_absent.select { |v| v[:category] == :self_satisfied }.count}"
+    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tfk\t#{db_present_model_absent.select { |v| v[:category] == :fk }.count}"
+    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tstr_unlimited\t#{db_present_model_absent.select { |v| v[:category] == :str_unlimited }.count}"
+    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tnot_accessed\t#{db_present_model_absent.select { |v| v[:category] == :not_accessed }.count}"
+    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tother\t#{db_present_model_absent.select { |v| v[:category] == :other }.count}"
 
     puts ""
 
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tpresence_no_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_no_default }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tpresence_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_has_default }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tformat\t#{model_present_db_absent.select { |v| v[:category] == :format }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tinclusion_exclusion\t#{model_present_db_absent.select { |v| v[:category] == :inclusion_exclusion }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tunique\t#{model_present_db_absent.select { |v| v[:category] == :unique }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tcustom\t#{model_present_db_absent.select { |v| v[:category] == :custom }.count}"
-    puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\tother\t#{model_present_db_absent.select { |v| v[:category] == :other }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tpresence_no_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_no_default }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tpresence_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_has_default }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tformat\t#{model_present_db_absent.select { |v| v[:category] == :format }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tinclusion_exclusion\t#{model_present_db_absent.select { |v| v[:category] == :inclusion_exclusion }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tunique\t#{model_present_db_absent.select { |v| v[:category] == :unique }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tcustom\t#{model_present_db_absent.select { |v| v[:category] == :custom }.count}"
+    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tother\t#{model_present_db_absent.select { |v| v[:category] == :other }.count}"
 
     # not_accessed_total = 0
     # db_present_model_absent.select{|v| v[:category] == :not_accessed}.each do |v|
@@ -326,13 +327,13 @@ class Version_class
     # end
     # puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tnot_accessed_total\t#{not_accessed_total}"
 
-    db_present_model_absent.each do |v|
-      puts "absent_check\t#{@app_dir}\tdb_present_model_absent\t#{v[:category]}\t#{v[:name]}"
-    end
+    #db_present_model_absent.each do |v|
+    #  puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\t#{v[:category]}\t#{v[:name]}"
+    #end
 
-    model_present_db_absent.each do |v|
-      puts "absent_check\t#{@app_dir}\tmodel_present_db_absent\t#{v[:category]}\t#{v[:name]}"
-    end
+    #model_present_db_absent.each do |v|
+    #  puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\t#{v[:category]}\t#{v[:name]}"
+    #end
   end
 
   def compare_self
