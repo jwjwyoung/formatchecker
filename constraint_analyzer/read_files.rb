@@ -157,14 +157,14 @@ def read_html_file_ast(view_files)
       `ruby #{extract_erb} #{erb_filename} #{target}`
       file = open(target)
       contents = file.read
+      file.close
+      if erb_filename.include? "haml"
+        # `rm #{erb_filename}`
+      end
+      `rm #{target}`
       if not(contents.include? "required" or contents.include? "maxlength" or contents.include? "minlength" or contents.include? "pattern")
         next
       end
-      file.close
-      if erb_filename.include? "haml"
-        `rm #{erb_filename}`
-      end
-      `rm #{target}`
       begin
         ast = YARD::Parser::Ruby::RubyParser.parse(contents).root
         $cur_class = File_class.new(filename)
