@@ -117,6 +117,7 @@ if options[:custom_change] and interval
 end
 
 if options[:single]
+  $read_html = false
   if options[:commit]
     find_mismatch_oneversion(options[:app], options[:commit])
   else
