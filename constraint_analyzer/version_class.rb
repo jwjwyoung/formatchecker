@@ -1,5 +1,5 @@
 class Version_class
-  attr_accessor :app_dir, :commit, :total_constraints_num, :db_constraints_num, :model_constraints_num, :html_constraints_num, :loc, :activerecord_files, :validation_functions
+  attr_accessor :app_dir, :commit, :total_constraints_num, :db_constraints_num, :model_constraints_num, :html_constraints_num, :loc, :activerecord_files, :validation_functions, :mismatch_constraints, :absent_constraints
 
   def initialize(app_dir, commit)
     @app_dir = app_dir
@@ -15,6 +15,8 @@ class Version_class
     @html_constraints = []
     @loc = 0
     @validation_functions = {}
+    @mismatch_constraints = { :headers => [], :data => []} 
+    @absent_constraints = { :headers => [], :data => []} 
   end
 
   def getDbConstraints
@@ -301,22 +303,21 @@ class Version_class
       end
     end
     
-    puts "absent_category_count\tAppName\tAbsenceType\tCategory\tCount"
-    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tself_satisfied\t#{db_present_model_absent.select { |v| v[:category] == :self_satisfied }.count}"
-    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tfk\t#{db_present_model_absent.select { |v| v[:category] == :fk }.count}"
-    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tstr_unlimited\t#{db_present_model_absent.select { |v| v[:category] == :str_unlimited }.count}"
-    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tnot_accessed\t#{db_present_model_absent.select { |v| v[:category] == :not_accessed }.count}"
-    puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tother\t#{db_present_model_absent.select { |v| v[:category] == :other }.count}"
+    @absent_constraints[:headers] = [:app_dir, :absence_type, :category, :count]
 
-    puts ""
+    @absent_constraints[:data] << [@app_dir, "db_present_model_absent", "self_satisfied", db_present_model_absent.select { |v| v[:category] == :self_satisfied }.count]
+    @absent_constraints[:data] << [@app_dir, "db_present_model_absent", "fk", db_present_model_absent.select { |v| v[:category] == :fk }.count]
+    @absent_constraints[:data] << [@app_dir, "db_present_model_absent", "str_unlimited", db_present_model_absent.select { |v| v[:category] == :str_unlimited }.count]
+    @absent_constraints[:data] << [@app_dir, "db_present_model_absent", "not_accessed", db_present_model_absent.select { |v| v[:category] == :not_accessed }.count]
+    @absent_constraints[:data] << [@app_dir, "db_present_model_absent", "other", db_present_model_absent.select { |v| v[:category] == :other }.count]
 
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tpresence_no_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_no_default }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tpresence_default\t#{model_present_db_absent.select { |v| v[:category] == :presence_has_default }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tformat\t#{model_present_db_absent.select { |v| v[:category] == :format }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tinclusion_exclusion\t#{model_present_db_absent.select { |v| v[:category] == :inclusion_exclusion }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tunique\t#{model_present_db_absent.select { |v| v[:category] == :unique }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tcustom\t#{model_present_db_absent.select { |v| v[:category] == :custom }.count}"
-    puts "absent_category_count\t#{@app_dir}\tmodel_present_db_absent\tother\t#{model_present_db_absent.select { |v| v[:category] == :other }.count}"
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "presence_no_default", model_present_db_absent.select { |v| v[:category] == :presence_no_default }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "presence_default", model_present_db_absent.select { |v| v[:category] == :presence_has_default }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "format", model_present_db_absent.select { |v| v[:category] == :format }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "inclusion_exclusion", model_present_db_absent.select { |v| v[:category] == :inclusion_exclusion }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "unique", model_present_db_absent.select { |v| v[:category] == :unique }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "custom", model_present_db_absent.select { |v| v[:category] == :custom }.count]
+    @absent_constraints[:data] << [@app_dir, "model_present_db_absent", "other", model_present_db_absent.select { |v| v[:category] == :other }.count]
 
     # not_accessed_total = 0
     # db_present_model_absent.select{|v| v[:category] == :not_accessed}.each do |v|
@@ -346,7 +347,8 @@ class Version_class
     absent_cons = {}
     absent_cons2 = {}
     mm_cons_num2 = 0
-    puts "mismatch_constraint\tAppDir\tConstraintType\tCategory\tKey\tMin1\tMax1\tMin2\tMax2\tMismatchFields"
+    @mismatch_constraints[:headers] = [:app_dir, :constraint_type, :category, :key, :min1, :max1, :min2, :max2, :mismatch_fields]
+
     @activerecord_files.each do |key, file|
       constraints = file.getConstraints
       model_cons = constraints.select { |k, v| k.include? "-#{Constraint::MODEL}" }
@@ -403,7 +405,7 @@ class Version_class
 
             mm_cons_num += 1
 
-            puts "mismatch_constraint\t#{@app_dir}\t#{v.class.name}\t#{mismatch_category}\t#{constraint_key}\t#{db_min}\t#{db_max}\t#{model_min}\t#{model_max}\t#{mismatch_fields}"
+            @mismatch_constraints[:data] << [@app_dir, v.class.name, mismatch_category, constraint_key, db_min, db_max, model_min, model_max, mismatch_fields]
           end
         end
       end
@@ -437,7 +439,7 @@ class Version_class
 
             mm_cons_num2 += 1
 
-            puts "mismatch_constraint\t#{@app_dir}\t#{v.class.name}\t#{mismatch_category}\t#{constraint_key}\t#{model_min}\t#{model_max}\t#{html_min}\t#{html_max}\t#{mismatch_fields}"
+            @mismatch_constraints[:data] << [@app_dir, v.class.name, mismatch_category, constraint_key, model_min, model_max, html_min, html_max, mismatch_fields]
           end
         end
       end
