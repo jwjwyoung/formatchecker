@@ -1,3 +1,14 @@
+def load_versions
+ $app_commit = {}
+ f = open("../app_with_commit.txt")
+ f.lines.each do |line|
+   values = line.strip.split("\t")
+   if values.length >= 2
+     $app_commit[values[0]] = values[1]
+   end
+ end
+ f.close
+end
 def load_validate_api
   $validate_apis = []
   validate_api = File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/validate_api")

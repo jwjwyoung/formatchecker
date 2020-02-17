@@ -148,23 +148,26 @@ def read_html_file_ast(view_files)
       `ruby #{formalize_script} #{filename}  #{formalized_filename};`
       #puts "formalized_filename #{open(formalized_filename).read}"
       #puts "#{haml2html} #{formalized_filename} > #{erb_filename}"
-      `#{haml2html} #{formalized_filename} > #{erb_filename}`
-      #puts "contents #{open(erb_filename).read}"
-      `rm #{formalized_filename}`
+      if !os.include? "Linux"
+        `#{haml2html} #{formalized_filename} > #{erb_filename}`
+        #puts "contents #{open(erb_filename).read}"
+        `rm #{formalized_filename}`
+      end
     end
     target = File.join(File.expand_path(File.dirname(__FILE__)), "../tmp/#{base}.rb")
     begin
+      next unless File.exist?erb_filename 
       `ruby #{extract_erb} #{erb_filename} #{target}`
       file = open(target)
       contents = file.read
+      file.close
+      if erb_filename.include? "haml"
+        #`rm #{erb_filename}`
+      end
+      `rm #{target}`
       if not(contents.include? "required" or contents.include? "maxlength" or contents.include? "minlength" or contents.include? "pattern")
         next
       end
-      file.close
-      if erb_filename.include? "haml"
-        `rm #{erb_filename}`
-      end
-      `rm #{target}`
       begin
         ast = YARD::Parser::Ruby::RubyParser.parse(contents).root
         $cur_class = File_class.new(filename)
