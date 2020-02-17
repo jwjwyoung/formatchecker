@@ -406,10 +406,23 @@ def find_all_mismatch(application_dir, interval)
 end
 
 def find_mismatch_oneversion(directory, commit = "master")
-  `cd #{directory}; git checkout -f #{commit}`
+  app_name = directory.split("/")[-1]
+  `cd #{directory};  git checkout -f #{$app_commit[app_name]}` 
   version = Version_class.new(directory, commit)
   version.build
   version.compare_self
+
+  mismatch_file = open("../log/mismatch_constraints_#{app_name}.csv", "w")
+  mismatch_file.write(version.mismatch_constraints[:headers].map {|x| x.to_s}.join(',') + "\n")
+  version.mismatch_constraints[:data].each do |row|
+    mismatch_file.write(row.map(&:to_s).join(',') + "\n")
+  end
+
+  absent_file = open("../log/absent_constraints_#{app_name}.csv", "w")
+  absent_file.write(version.absent_constraints[:headers].map {|x| x.to_s}.join(',') + "\n")
+  version.absent_constraints[:data].each do |row|
+    absent_file.write(row.map(&:to_s).join(',') + "\n")
+  end
 end
 
 def count_non_destroy(directory, commit = "master")

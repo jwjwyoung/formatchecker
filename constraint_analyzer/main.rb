@@ -18,6 +18,7 @@ require "active_support"
 require "active_support/inflector"
 require "active_support/core_ext/string"
 require "regexp-examples"
+require "pathname"
 load_versions
 load_validate_api # load the model api
 load_html_constraint_api #load the html api

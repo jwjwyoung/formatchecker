@@ -2,8 +2,8 @@ args = ARGV
 
 def header_line(command)
 	header_line = ""
-	if command == '-l'
-		header_line = "APP loc total_constraints_num db_constraints_num model_constraints_num html_constraints_num columnstats: [total, associated_with_constraints]\n"
+	if command == '-l' or command == "--latest-version"
+		header_line = "APP Latest Version Constraint Breakdown loc total_constraints_num db_constraints_num model_constraints_num html_constraints_num columnstats: [total, associated_with_constraints]\n"
 	end
 	if ["--tva", '-t'].include?command
 		header_line = "APP #versions	added/changed_versions	model_newconstraints	db_newconstraints	model_changedconstraints	db_changedconstraints	model_existing_columns	db_existing_columns	model_new_columns	db_new_columns	html_newconstraints	html_changedconstraints	html_exisitng_columns	html_new_columns"
