@@ -202,7 +202,35 @@ class Version_class
     end
     return newly_added_constraints, changed_constraints, existing_column_constraints, new_column_constraints, not_match_html_constraints
   end
-
+  def get_all_table_column_size
+    col_size = {}
+    @activerecord_files.each do |key, file|
+      col_size[key] = file.getColumnsLength
+    end
+    return col_size
+  end
+  def get_table_original_column_size(old_version)
+    results = {}
+    @activerecord_files.each do |key, file|
+      old_file = old_version.get_activerecord_files[key]
+      # if the old file doesn't exist, which means it's newly created
+      next unless old_file
+      constraints = file.getConstraints
+      old_constraints = old_file.getConstraints
+      old_columns = old_file.getColumns
+      constraints.each do |column_keyword, constraint|
+        if old_constraints[column_keyword]
+        else
+          column_name = constraint.column
+          if old_columns[column_name]
+          else
+            results[key] = file.getColumnsLength
+          end
+        end
+      end
+    end
+    return results
+  end
   def is_html_constraint_match_validate(old_constraints, column_keyword, constraint)
     key = column_keyword.gsub(Constraint::HTML, Constraint::MODEL)
     key2 = column_keyword.gsub(Constraint::HTML, Constraint::DB)

@@ -68,6 +68,10 @@ class File_class
     return @columns
   end
 
+  def getColumnsLength
+    return @columns.length
+  end
+
   def addForeignKey(key_name)
     @foreign_keys << key_name
   end

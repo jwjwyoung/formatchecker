@@ -130,6 +130,8 @@ end
 def first_last_version_comparison_on_num(application_dir)
   `cd #{application_dir}; git stash; git checkout -f master`
   versions = extract_commits(application_dir, 1, false)
+  app_name = application_dir.split("/")[-1]
+  
   if versions.length <= 0
     puts "No versions"
     return
@@ -137,9 +139,16 @@ def first_last_version_comparison_on_num(application_dir)
   version0 = versions[0]
   version1 = versions[-1]
   version0.build
+  version0.column_stats
   version1.build
+  version1.column_stats
   puts "Latest Version Constraint Breakdown: #{version0.total_constraints_num} #{version0.db_constraints_num} #{version0.model_constraints_num} #{version0.html_constraints_num}"
   puts "First Version Constraint Breakdown: #{version1.total_constraints_num} #{version1.db_constraints_num} #{version1.model_constraints_num} #{version1.html_constraints_num}"
+  output_c = "Latest Column #{version0.column_stats}\n"
+  output_c += "First Column #{version1.column_stats}\n"
+  output = open("../log/output_column_stats_#{app_name}.log", "w")
+  output.write(output_c)
+  output.close
 end
 
 def api_breakdown(application_dir)
@@ -392,6 +401,84 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   output.close
   output_diff_codechange.close
   output_html_constraints.close
+end
+
+def extract_table_size_comparison(application_dir, interval, tag_unit = true)
+  versions = extract_commits(application_dir, interval, tag_unit)
+  puts "versions.length: #{versions.length}"
+  return if versions.length <= 0
+  app_name = application_dir.split("/")[-1]
+  version_his_folder = "../log/vhf_#{app_name}/"
+  if not File.exist? version_his_folder
+    `mkdir #{version_his_folder}`
+  end
+  yaml_version = version_his_folder+versions[0].commit.gsub("/","-")
+  if File.exist?(yaml_version)
+    versions[0] = YAML.load(File.read(yaml_version))
+  else
+    versions[0].build
+    versions[0].clean
+    File.open(yaml_version, 'w') { |f| f.write(YAML.dump(versions[0])) }
+  end
+  output = open("../log/columnsizecomp_#{app_name}.log", "w")
+  version = versions[0]
+  start = Time.now
+  final_results = {}
+  first_results = {}
+  version.activerecord_files.each do |key, file|
+    final_results[key] = file.getColumnsLength
+  end
+  g_as_s = [] #gitlab application setting table size
+  as_name = "User"
+  if as_size = version.get_all_table_column_size[as_name]
+    g_as_s << as_size
+  end
+  for i in 1...versions.length
+    puts "=============#{i} out of #{versions.length}============="
+    new_version = versions[i - 1]
+    version = versions[i]
+    yaml_version = version_his_folder+version.commit.gsub("/","-")
+    if File.exist?(yaml_version)
+      version = versions[i] = YAML.load(File.read(yaml_version))
+    else
+      version.build
+      version.clean
+      File.open(yaml_version, 'w') { |f| f.write(YAML.dump(version)) }
+    end
+    puts "Duration of reading: #{Time.now - start}"
+    results = new_version.get_table_original_column_size(version)
+    first_results = first_results.merge(results)
+    if i == versions.length - 1
+      version.activerecord_files.each do |key, file|
+        first_results[key] = file.getColumnsLength
+      end
+    end
+    if as_size = version.get_all_table_column_size[as_name]
+      g_as_s << as_size
+    end
+  end
+  growths = []
+  tables = []
+  puts "final_results: #{final_results.size}"
+  final_results.each do |key, size|
+    if ori_size = first_results[key]
+      growth = size - ori_size
+      growths << growth
+      tables << key
+    end
+  end
+  puts "growths: #{growths.size}"
+  output.write(growths.join(" "))
+  output.write("\n")
+  output.write(tables.join(" "))
+  output.write("\n")
+  output.write("max min average\n")
+  average = 'NULL'
+  average = growths.reduce(:+) * 1.0 / growths.size if growths.size > 0
+  output.write("#{growths.max} #{growths.min} #{average}\n")
+  output.write("#{g_as_s.join(" ")}\n")
+  output.write("#{g_as_s.size}\n")
+  output.close
 end
 
 def find_all_mismatch(application_dir, interval)

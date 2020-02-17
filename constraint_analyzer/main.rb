@@ -80,7 +80,9 @@ OptionParser.new do |opts|
   opts.on("--if-checking", "please specify whether you want to check the custom function") do |v|
     options[:if_checking] = true
   end
-  
+  opts.on("--compare-column-size", "please specify whether you want to compare the column size") do |v|
+    options[:compare_column_size] = true
+  end
 end.parse!
 
 $read_html = true
@@ -106,6 +108,11 @@ if options[:tva] and interval
     traverse_all_versions(application_dir, interval, true)
   end
 end
+
+if options[:compare_column_size] and interval
+  extract_table_size_comparison(application_dir, interval)
+
+end 
 
 if options[:custom_change] and interval
   puts "traverse to see custom change  options[:commit_unit] #{options[:commit_unit]}"
