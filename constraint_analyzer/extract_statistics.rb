@@ -53,13 +53,13 @@ end
 
 def extract_commits(directory, interval = 5, tag_unit = true)
   # reset to the most up to date commit
-  puts "cd #{directory}; git checkout -f master"
+  app_name = directory.split("/")[-1]
+  puts "cd #{directory}; git checkout -f #{$app_commit[app_name]}"
   `cd #{directory}; git checkout -f master`
   puts "directory #{directory}"
 
   tags = `cd #{directory}; git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
   app_version_size = {"discourse"=>"316", "lobsters"=>"19", "gitlabhq"=>"1040", "redmine"=>"159", "spree"=>"261", "ror_ecommerce"=>"31", "fulcrum"=>"7", "tracks"=>"26", "onebody"=>"39", "diaspora"=>"86", "falling-fruit"=>"12", "openstreetmap-website"=>"95"}
-  app_name = directory.split("/")[-1]
   version_size = app_version_size[app_name].to_i
   if tag_unit
     commits = tags.lines.reverse.map { |x| x.strip }
@@ -98,7 +98,9 @@ def get_tags_before_certain_date(commit,directory)
 end
 
 def current_version_constraints_num(application_dir, commit = "master")
-  `cd #{application_dir}; git checkout -f #{commit}`
+  directory = application_dir
+  app_name = directory.split("/")[-1]
+  puts "cd #{directory}; git checkout -f #{$app_commit[app_name]}"
   version = Version_class.new(application_dir, commit)
   version.build
   version.column_stats
@@ -149,7 +151,7 @@ def api_breakdown(application_dir)
   # `cd #{application_dir}; git checkout -f #{commit}`
   # version = Version_class.new(application_dir, commit)
   # `cd #{application_dir}; git stash; git pull; git checkout master`
-  `cd #{application_dir}; git stash;  git checkout -f master`
+  `cd #{application_dir}; git stash;  git checkout -f #{$app_commit[app_name]}`
   version = Version_class.new(application_dir, commit)
   
   # versions = extract_commits(application_dir, 1, false)

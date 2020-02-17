@@ -22,7 +22,8 @@ def read_constraint_files(application_dir = nil, version = "")
   end
   # checkout to specified version
   if version != ""
-    `cd #{$app_dir2};git stash; git checkout #{version}`
+    app_name = application_dir.split("/")[-1]
+    `cd #{$app_dir2};git stash; git checkout -f #{$app_commit[app_name]}`
   end
 
   # puts "$application_dir #{$app_dir2}"
