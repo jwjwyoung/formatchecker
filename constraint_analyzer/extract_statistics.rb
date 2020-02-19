@@ -497,6 +497,15 @@ def find_mismatch_oneversion(directory, commit = "master")
   version.compare_self
 end
 
+def dump_constraints(application_dir, dump_filename, commit = "master")
+  `cd #{application_dir}; git checkout --quiet -f #{commit}`
+  version = Version_class.new(application_dir, commit)
+  version.build
+  constraints = version.get_model_constraints
+
+  File.open(dump_filename, 'wb') {|f| f.write(Marshal.dump(constraints))}
+end
+
 def count_non_destroy(directory, commit = "master")
   `cd #{directory}; git checkout -f #{commit}`
   version = Version_class.new(directory, commit)

@@ -83,6 +83,10 @@ OptionParser.new do |opts|
   opts.on("--compare-column-size", "please specify whether you want to compare the column size") do |v|
     options[:compare_column_size] = true
   end
+  opts.on("--dump-constraints filename", "please specify which file to dump all constraints") do |v|
+    options[:dump_constraints] = true
+    options[:dump_filename] = v
+  end
 end.parse!
 
 $read_html = true
@@ -129,6 +133,10 @@ if options[:single]
   else
     find_mismatch_oneversion(options[:app])
   end
+end
+
+if options[:dump_constraints] and options[:dump_filename]
+  dump_constraints(options[:app], options[:dump_filename])
 end
 if options[:mismatch]
   puts "interval parse: #{interval.class.name}"

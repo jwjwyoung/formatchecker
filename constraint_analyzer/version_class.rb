@@ -316,7 +316,7 @@ class Version_class
           #puts "Inclusion #{v.to_string} #{column.column_type}"
           begin
             next if v.range and eval(v.range) == [true, false] and column.column_type == "boolean"
-          rescue
+          rescue SyntaxError => se
           end
           model_present_db_absent << { :name => k, :category => :inclusion_exclusion, :value => v }
         elsif v.instance_of? Uniqueness_constraint
@@ -355,13 +355,34 @@ class Version_class
     # end
     # puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\tnot_accessed_total\t#{not_accessed_total}"
 
-    #db_present_model_absent.each do |v|
-    #  puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\t#{v[:category]}\t#{v[:name]}"
-    #end
+    db_present_model_absent.each do |v|
+      puts "absent_constraint\t#{@app_dir}\tdb_present_model_absent\t#{v[:category]}\t#{v[:name]}"
+    end
 
-    #model_present_db_absent.each do |v|
-    #  puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\t#{v[:category]}\t#{v[:name]}"
-    #end
+    model_present_db_absent.each do |v|
+      puts "absent_constraint\t#{@app_dir}\tmodel_present_db_absent\t#{v[:category]}\t#{v[:name]}"
+    end
+  end
+
+  def get_model_constraints
+    total_constraints = @activerecord_files.map { |k, v| v.getConstraints.length }.reduce(:+)
+    output = []
+    @activerecord_files.each do |key, file|
+      constraints = file.getConstraints
+      model_cons = constraints.select { |k, v| k.include? "-#{Constraint::MODEL}" }
+      db_cons = file.getConstraints.select { |k, v| k.include? "-#{Constraint::DB}" }
+      model_cons.each do |k, v|
+        exists_in_db = (db_cons[k.gsub("-#{Constraint::MODEL}", "-#{Constraint::DB}")] != nil)
+        if v.instance_of?Presence_constraint
+          output << {:type => :presence, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db}
+        elsif v.instance_of?Inclusion_constraint
+          output << {:type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db}
+        elsif v.instance_of?Uniqueness_constraint
+          output << {:type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db}
+        end
+      end
+    end
+    return output
   end
 
   def compare_self
