@@ -13,6 +13,8 @@ Install required gems:
 
 `gem install activesupport`
 
+`gem install write_xlsx`
+
 cloc for line of code analysis:
 * linux
 `export PATH=`pwd`/cloc-1.82/cloc:$PATH`
