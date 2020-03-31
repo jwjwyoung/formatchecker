@@ -95,7 +95,8 @@ def read_constraint_files(application_dir = nil, version = "")
         # puts "add new class #{c.class_name} #{c.upper_class_name}"
       end
       # puts "add new class #{$cur_class.class_name} #{$cur_class.upper_class_name}"
-    rescue
+    rescue => error
+			puts error
       # puts "failed filename: #{filename}"
     end
   end
