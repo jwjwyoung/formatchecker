@@ -263,8 +263,10 @@ class Uniqueness_constraint < Constraint
       if scope_ast.type.to_s == "symbol_literal"
         column = handle_symbol_literal_node(scope_ast)
         @scope = [column]
-      end
-      if scope_ast.type.to_s == "array"
+      elsif scope_ast.type.to_s == "string_literal"
+        column = handle_string_literal_node(scope_ast)
+        @scope = [column]
+      elsif scope_ast.type.to_s == "array"
         @scope = handle_array_node(scope_ast)
       end
     end
