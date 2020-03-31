@@ -50,13 +50,15 @@ def parse_model_constraint_file(ast)
     if funcname == "has_many" || funcname == "belongs_to" 
       columns = []
       dic = {}
-      puts "has_many #{ast.type}"
+      puts "#{func_name} #{ast.type}"
       ast[1].children.each do |child|
         if child.type.to_s == "symbol_literal"
           column = handle_symbol_literal_node(child)
           columns << column
         end
-        # puts"child.type.to_s #{child.type.to_s} #{child.source}"
+        puts"child.type.to_s #{child.type.to_s} #{child.source}"
+				pp child
+				#puts ""
         if child.type.to_s == "list"
           child.each do |c|
             if c.type.to_s == "assoc"
@@ -67,10 +69,12 @@ def parse_model_constraint_file(ast)
             end
           end
         end
+				puts "dict = #{dict}"
+				puts ""
       end
       if funcname == "has_many"
         columns.each do |column|
-          puts "#{column} #{dic}"
+          # puts "#{column} #{dic}"
           $cur_class.addHasMany(column, dic)
         end
       end
@@ -84,8 +88,15 @@ def parse_model_constraint_file(ast)
             #$cur_class.addConstraints(cs) if cs.length > 0
           end
         end
-
       end
+			#if !dic[:polymorphic].nil?
+			#	columns.each do |column|
+      #    type = Constraint::MODEL
+			#		constraint = Inclusion_constraint.new($cur_class.class_name, column+"_type", type, nil, nil)
+			#		puts "Inclusion constraint !! #{constraint.inspect}" 
+			#		cs << constraint
+			#	end
+			#end
     end
   end
   if ast.type.to_s == "def"
