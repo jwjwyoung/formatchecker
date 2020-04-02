@@ -136,7 +136,7 @@ if options[:single]
 end
 
 if options[:dump_constraints] and options[:dump_filename]
-  dump_constraints(options[:app], options[:dump_filename])
+  dump_constraints(options[:app], options[:dump_filename], options[:commit])
 end
 if options[:mismatch]
   puts "interval parse: #{interval.class.name}"
