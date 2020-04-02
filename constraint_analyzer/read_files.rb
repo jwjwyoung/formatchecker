@@ -13,16 +13,13 @@ def os_walk(dir)
   [root, files, dirs]
 end
 
-def read_constraint_files(application_dir = nil, version = "")
-  if application_dir and version
-    $app_dir2 = application_dir
-  else
-    # puts "application dir not defined or version number is not defined"
-    return
-  end
-  # checkout to specified version
-  if version != ""
-    `cd #{$app_dir2};git stash; git checkout #{version}`
+def read_constraint_files(application_dir = nil, commit = nil)
+  return if !application_dir
+  $app_dir2 = application_dir
+  
+  # checkout to specified commit if provided
+  if commit
+    `cd #{$app_dir2};git stash; git checkout #{commit}`
   end
 
   # puts "$application_dir #{$app_dir2}"

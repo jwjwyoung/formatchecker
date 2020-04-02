@@ -498,8 +498,6 @@ def find_mismatch_oneversion(directory, commit = "master")
 end
 
 def dump_constraints(application_dir, dump_filename, commit)
-  commit = "master" if !commit
-  `cd #{application_dir}; git checkout -f #{commit}`
   version = Version_class.new(application_dir, commit)
   version.build
   constraints = version.get_model_constraints

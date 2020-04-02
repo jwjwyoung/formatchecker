@@ -3,7 +3,7 @@ class Version_class
 
   def initialize(app_dir, commit)
     @app_dir = app_dir
-    @commit = commit.strip
+    @commit = commit.strip if commit != nil 
     @files = {}
     @activerecord_files = {}
     @total_constraints_num = 0
@@ -30,7 +30,7 @@ class Version_class
   end
 
   def extract_files
-    if @app_dir and @commit
+    if @app_dir 
       @files = read_constraint_files(@app_dir, @commit)
     end
   end
