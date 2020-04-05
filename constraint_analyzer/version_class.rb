@@ -379,6 +379,8 @@ class Version_class
           output << {:type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db}
         elsif v.instance_of?Uniqueness_constraint
           output << {:type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db}
+        elsif v.instance_of?Format_constraint
+          output << {:type => :format, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :value => v.with_format}
         end
       end
     end
