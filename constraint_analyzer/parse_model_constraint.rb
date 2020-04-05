@@ -12,6 +12,7 @@ def parse_model_constraint_file(ast)
         parse_model_constraint_file(child)
       end
     end
+    $module_name.chomp!(moduleName)
   end
   if ast.type.to_s == "class"
     c1 = ast.children[0]
