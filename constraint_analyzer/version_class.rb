@@ -374,13 +374,13 @@ class Version_class
       model_cons.each do |k, v|
         exists_in_db = (db_cons[k.gsub("-#{Constraint::MODEL}", "-#{Constraint::DB}")] != nil)
         if v.instance_of?Presence_constraint
-          output << {:type => :presence, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db}
+          output << {:type => :presence, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
         elsif v.instance_of?Inclusion_constraint
-          output << {:type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db}
+          output << {:type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
         elsif v.instance_of?Uniqueness_constraint
-          output << {:type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db}
+          output << {:type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
         elsif v.instance_of?Format_constraint
-          output << {:type => :format, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :value => v.with_format}
+          output << {:type => :format, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :value => v.with_format, :if_cond => v.if_cond}
         end
       end
     end

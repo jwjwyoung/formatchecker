@@ -50,8 +50,14 @@ class Constraint
   end
 
   def parse(dic)
-    if dic and dic.include? "message"
+    return if !dic
+
+    if dic.include? "message"
       @custom_error_msg = true
+    end
+
+    if dic.include? "if"
+      @if_cond = dic["if"].source
     end
   end
 end
