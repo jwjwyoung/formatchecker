@@ -100,7 +100,7 @@ class Version_class
   def annotate_model_class
     not_active_files = []
     @files.values.each do |file|
-      if ["ActiveRecord::Base", "Spree::Base"].include? file.upper_class_name
+      if ["::ActiveRecord::Base", "ActiveRecord::Base", "Spree::Base"].include? file.upper_class_name
         file.is_activerecord = true
       else
         not_active_files << file
@@ -220,9 +220,13 @@ class Version_class
     db_present_model_absent = []
     model_present_db_absent = []
     @activerecord_files.each do |key, file|
-      db_cons = file.getConstraints.select { |k, v| k.include? "-#{Constraint::DB}" }
-      model_cons = file.getConstraints.select { |k, v| k.include? "-#{Constraint::MODEL}" }
-      html_cons = file.getConstraints.select { |k, v| k.include? "-#{Constraint::HTML}" }
+      # filter constraints who has if / else
+      constraints = file.getConstraints
+      constraints = constraints.select{|k, v| not v.has_cond} if $filter_condition
+      constraints = constraints.select{|k, v| not (v.on_cond and v.on_cond != "create")}
+      db_cons = constraints.select { |k, v| k.include? "-#{Constraint::DB}" }
+      model_cons = constraints.select { |k, v| k.include? "-#{Constraint::MODEL}" }
+      html_cons = constraints.select { |k, v| k.include? "-#{Constraint::HTML}" }
 
       db_cons.each do |k, v|
         k2 = k.gsub("-#{Constraint::DB}", "-#{Constraint::MODEL}")
@@ -302,6 +306,17 @@ class Version_class
         end
       end
     end
+    # write the model present db absent data to the file
+    app_name = @app_dir.split("/")[-1]
+    model_db_filename = "../log/model_present_db_absent_constraints_#{app_name}.log"
+    model_db_file = open(model_db_filename, "w")
+    for c in model_present_db_absent
+      v = c[:value]
+      model_db_file.write([@app_dir, v.ast&.source, c[:category]].join(","))
+      model_db_file.write("\n")
+    end
+    model_db_file.close
+
     
     @absent_constraints[:headers] = [:app_dir, :absence_type, :category, :count]
 
@@ -351,6 +366,9 @@ class Version_class
 
     @activerecord_files.each do |key, file|
       constraints = file.getConstraints
+      # add a filter for constraints which has no condition
+      constraints = constraints.select{|k, v| not v.has_cond} if $filter_condition
+      constraints = constraints.select{|k, v| not (v.on_cond and v.on_cond != "create")}
       model_cons = constraints.select { |k, v| k.include? "-#{Constraint::MODEL}" }
       db_cons = constraints.select { |k, v| k.include? "-#{Constraint::DB}" }
       html_cons = constraints.select { |k, v| k.include? "-#{Constraint::HTML}" }

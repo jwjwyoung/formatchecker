@@ -2,9 +2,9 @@ class Constraint
   DB = "db"
   MODEL = "validate"
   HTML = "html"
-  attr_accessor :table, :column, :type, :if_cond, :unless_cond, :allow_nil, :allow_blank, :is_new_column, :custom_error_msg, :has_cond
+  attr_accessor :table, :column, :type, :if_cond, :unless_cond, :allow_nil, :allow_blank, :is_new_column, :custom_error_msg, :has_cond, :on_cond, :ast
   #type: model from validate function / db migration file
-  def initialize(table, column, type, allow_nil = false, allow_blank = false)
+  def initialize(table, column, type, allow_nil = false, allow_blank = false, on_cond = nil)
     @column = column
     @table = table
     @type = type
@@ -15,6 +15,8 @@ class Constraint
     @is_new_column = false
     @custom_error_msg = false
     @has_cond = false
+    @on_cond = on_cond
+    @ast = nil
   end
 
   def is_same(old_constraint)
@@ -53,6 +55,9 @@ class Constraint
     if dic and dic.include? "message"
       @custom_error_msg = true
     end
+    if dic and dic.include? "on"
+      @on_cond = dic["on"].source
+    end
   end
 end
 
@@ -77,12 +82,17 @@ class Length_constraint < Constraint
       minimum = dic["minimum"].source
       self.min_value = minimum
     end
-    if @range and eval(@range)
-      @range = eval(@range)
-      @min_value = @range.min
-      @max_value = @range.max
-      # puts "RANGE: #{@range} #{min_value} #{max_value}"
+    begin
+      if @range and eval(@range)     
+        @range = eval(@range)
+        @min_value = @range.min
+        @max_value = @range.max
+      end
+    rescue
+      puts "@range of #{@range} cannot be parsed"
     end
+      # puts "RANGE: #{@range} #{min_value} #{max_value}"
+    
     if @max_value and @max_value != "nil" and @max_value.to_i
       @max_value = @max_value.to_i
     else

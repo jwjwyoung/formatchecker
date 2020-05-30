@@ -85,6 +85,7 @@ def compare_instance_variables(obj1, obj2)
   results = []
 
   obj1.instance_variables.map do |v|
+    next if v.to_s == "@ast" # don't compare ast
     val1 = obj1.send(:instance_variable_get, v)
     val2 = obj2.send(:instance_variable_get, v)
     if val1 != val2
