@@ -5,19 +5,16 @@ This is for format checking.
 ## Set up
 Install required gems:
 
-`gem install yard`
+```sh
+bundle config --local PATH vendor/bundle
+bundle install
+```
 
-`gem install regexp-examples -v 1.4.4`
-
-`gem install pg_query`
-
-`gem install activesupport`
-
-`gem install write_xlsx`
+Note: run ruby as `bundle exec ruby`.
 
 cloc for line of code analysis:
 * linux
-`export PATH=`pwd`/cloc-1.82/cloc:$PATH`
+``export PATH=`pwd`/cloc-1.82/cloc:$PATH``
 * mac
 `brew install cloc`
 
@@ -28,5 +25,3 @@ bs4 under python3
 or
 
 `pip3 install beautifulsoup4`
-
-
