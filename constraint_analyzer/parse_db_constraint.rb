@@ -5,7 +5,7 @@ def parse_db_constraint_file(ast)
       parse_db_constraint_file(child)
     end
   when :call
-    parse_db_constraint_file(ast[-1][-1]) if ast[-1]&.type&.to_s == "do_block"
+    parse_db_constraint_file(ast[-1][-1]) if ast[-1]&.type == :do_block
   when :class
     # puts"ast.children #{ast.children[0].source}"
     c3 = ast.children[2]
@@ -14,7 +14,7 @@ def parse_db_constraint_file(ast)
       parse_db_constraint_file(c3)
     end
   when :def, :defs
-    funcname = if ast[1] && ast[1].type.to_s == "period"
+    funcname = if ast[1] && ast[1].type == :period
                  ast[2].source
                else
                  ast[0].source
@@ -35,8 +35,8 @@ def parse_db_constraint_file(ast)
   end
 end
 
-def parse_db_constraint_function(table, funcname, ast)
-  ast[1] = ast[1][0] if ast[1].type.to_s == "arg_paren"
+def parse_db_constraint_function(_table, funcname, ast)
+  ast[1] = ast[1][0] if ast[1].type == :arg_paren
   case funcname
   when "add_column"
     handle_add_column(ast[1])
@@ -100,31 +100,31 @@ def handle_change_column(ast, is_deleted = false)
   dic = extract_hash_from_list(children[-1])
   class_name = convert_tablename(table)
   table_class = $model_classes[class_name]
-  table_class = $dangling_classes[class_name] if !table_class
-  if !table_class
+  table_class ||= $dangling_classes[class_name]
+  unless table_class
     table_class = File_class.new("")
     table_class.is_activerecord = true
     $dangling_classes[class_name] = table_class
   end
   if is_deleted
     table_class.getColumns[column_name].is_deleted = true
-    constraint_delete_keys = table_class.getConstraints.select do |k, v|
+    constraint_delete_keys = table_class.getConstraints.select do |k, _v|
       k.start_with? "#{class_name}-#{column_name}"
     end
-    table_class.getConstraints.delete_if { |k, v| constraint_delete_keys.include? k }
+    table_class.getConstraints.delete_if { |k, _v| constraint_delete_keys.include? k }
   end
 
-  if table and column_name and column_type
+  if table && column_name && column_type
     column = Column.new(table_class, column_name, column_type, $cur_class, dic)
     column.is_deleted = is_deleted
     columns = table_class.getColumns
     column.prev_column = columns[column_name]
     table_class.addColumn(column)
-    constraint_delete_keys = table_class.getConstraints.select do |k, v|
-      k.include? "#{class_name}-#{column_name}-#{Presence_constraint.to_s}-#{Constraint::DB}" or
-        k.include? "#{class_name}-#{column_name}-#{Length_constraint.to_s}-#{Constraint::DB}"
+    constraint_delete_keys = table_class.getConstraints.select do |k, _v|
+      k.include? "#{class_name}-#{column_name}-#{Presence_constraint}-#{Constraint::DB}" or
+        k.include? "#{class_name}-#{column_name}-#{Length_constraint}-#{Constraint::DB}"
     end
-    table_class.getConstraints.delete_if { |k, v| constraint_delete_keys.include? k }
+    table_class.getConstraints.delete_if { |k, _v| constraint_delete_keys.include? k }
     constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
     table_class.addConstraints(constraints)
   end
@@ -132,66 +132,57 @@ def handle_change_column(ast, is_deleted = false)
 end
 
 def handle_create_table(ast)
-  table_name = nil
-  # puts"handle_create\n#{ast.source}"
-  # puts"ast[1] #{ast[1].source} #{ast[1].type.to_s}"
-  if ast[1].type.to_s == "list"
-    symbol_node = ast[1][0]
-    table_name = handle_symbol_literal_node(symbol_node) || handle_string_literal_node(symbol_node)
-    class_name = convert_tablename(table_name)
-    # puts"class_name: #{class_name}"
-    ## puts"table_name: #{table_name}"
-    return unless ast[2].type.to_s == "do_block"
-    ast[2].children.each do |child|
-      next unless child.type.to_s == "list"
-      child.children.each do |c|
-        if c.type.to_s == "command_call"
-          column_type = c[2].source
-          if column_type == "references"
-            column_type = "string"
-          end
-          if column_type == "column"
-            column_type = handle_symbol_literal_node(c[3][1])
-          end
-          column_ast = c[-1]
-          if column_ast.class.name == "YARD::Parser::Ruby::AstNode" and column_ast.type.to_s == "list"
-            table_class = $model_classes[class_name]
-            table_class = $dangling_classes[class_name] if !table_class
-            if !table_class
-              table_class = File_class.new("")
-              table_class.is_activerecord = true
-              $dangling_classes[class_name] = table_class
-            end
-            dic = extract_hash_from_list(column_ast.children[-1])
-            if column_type == "index"
-              columns = []
-              if column_ast[0].type.to_s == "symbol_literal"
-                columns = [handle_symbol_literal_node(column_ast[0])]
-              elsif column_ast[0].type.to_s == "string_literal"
-                columns = [handle_string_literal_node(column_ast[0])]
-              elsif column_ast[0].type.to_s == "array"
-                columns = handle_array_node(column_ast[0])
-              end
-              index_name = dic["name"]&.source || handle_symbol_literal_node(dic["name"]) || handle_string_literal_node(dic["name"])
-              index_name = index_name || "#{table_name}_#{columns.join("_")}"
-              new_index = Index.new(index_name, table_name, columns)
-              if dic["unique"]&.source == "true"
-                new_index.unique = true
-              end
-              table_class.addIndex(new_index)
-              #puts "ADD INDEX: #{new_index.table_name} #{new_index.name} #{new_index.columns} #{new_index.unique}"
-            else
-              column_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
-              column = Column.new(table_class, column_name, column_type, $cur_class)
-              columns = table_class.getColumns
-              column.prev_column = columns[column_name]
-              table_class.addColumn(column)
-              column.parse(dic)
-              constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
-              table_class.addConstraints(constraints)
-            end
-          end
+  return unless ast[1].type == :list && ast[2].type == :do_block
+
+  symbol_node = ast[1][0]
+  table_name = handle_symbol_literal_node(symbol_node) || handle_string_literal_node(symbol_node)
+  class_name = convert_tablename(table_name)
+
+  ast[2].children.each do |child|
+    next unless child.type.to_s == "list"
+
+    child.children.each do |c|
+      next unless c.type.to_s == "command_call"
+
+      column_type = c[2].source
+      column_type = "string" if column_type == "references"
+      column_type = handle_symbol_literal_node(c[3][1]) if column_type == "column"
+      column_ast = c[-1]
+      next unless (column_ast.class.name == "YARD::Parser::Ruby::AstNode") && (column_ast.type.to_s == "list")
+
+      table_class = $model_classes[class_name]
+      table_class ||= $dangling_classes[class_name]
+      unless table_class
+        table_class = File_class.new("")
+        table_class.is_activerecord = true
+        $dangling_classes[class_name] = table_class
+      end
+      dic = extract_hash_from_list(column_ast.children[-1])
+      if column_type == "index"
+        columns = []
+        if column_ast[0].type.to_s == "symbol_literal"
+          columns = [handle_symbol_literal_node(column_ast[0])]
+        elsif column_ast[0].type.to_s == "string_literal"
+          columns = [handle_string_literal_node(column_ast[0])]
+        elsif column_ast[0].type.to_s == "array"
+          columns = handle_array_node(column_ast[0])
         end
+        index_name = dic["name"]&.source || handle_symbol_literal_node(dic["name"]) ||
+                     handle_string_literal_node(dic["name"])
+        index_name ||= "#{table_name}_#{columns.join('_')}"
+        new_index = Index.new(index_name, table_name, columns)
+        new_index.unique = true if dic["unique"]&.source == "true"
+        table_class.addIndex(new_index)
+        # puts "ADD INDEX: #{new_index.table_name} #{new_index.name} #{new_index.columns} #{new_index.unique}"
+      else
+        column_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
+        column = Column.new(table_class, column_name, column_type, $cur_class)
+        columns = table_class.getColumns
+        column.prev_column = columns[column_name]
+        table_class.addColumn(column)
+        column.parse(dic)
+        constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
+        table_class.addConstraints(constraints)
       end
     end
   end
@@ -210,19 +201,15 @@ def handle_change_column_null(ast)
       class_name = convert_tablename(table_name)
       table_class = $model_classes[class_name]
     end
-    table_class = $dangling_classes[class_name] if !table_class
-    if !table_class
+    table_class ||= $dangling_classes[class_name]
+    unless table_class
       table_class = File_class.new("")
       table_class.is_activerecord = true
       $dangling_classes[class_name] = table_class
     end
-    if ast[1][1].type.to_s == "symbol_literal"
-      column_name = handle_symbol_literal_node(ast[1][0])
-    end
-    if ast[1][2].type.to_s == "var_ref"
-      null = ast[1][2].source
-    end
-    if class_name and table_class and column_name and null == "false"
+    column_name = handle_symbol_literal_node(ast[1][0]) if ast[1][1].type.to_s == "symbol_literal"
+    null = ast[1][2].source if ast[1][2].type.to_s == "var_ref"
+    if class_name && table_class && column_name && (null == "false")
       constraint = Presence_constraint.new(class_name, column_name, Constraint::DB)
       table_class.addConstraints([constraint])
     end
@@ -237,50 +224,59 @@ def handle_reversible(ast)
   class_name = nil
   dic = {}
   return unless ast[-1].type.to_s == "do_block"
+
   list_ast = ast[-1][-1]
   return unless list_ast&.type.to_s == "list"
+
   list_ast.children.each do |child|
     next unless child.type.to_s == "command"
+
     # puts "#{child[1].type.to_s} child1 #{child[1][0].type.to_s}"
-    next if !(child[1].type.to_s == "list" and child[1][0].type.to_s == "symbol_literal") if $debug_mode
+    next if $debug_mode && !((child[1].type.to_s == "list") && (child[1][0].type.to_s == "symbol_literal"))
+
     table_name = handle_symbol_literal_node(child[1][0]) || handle_string_literal_node(child[1][0])
     class_name = convert_tablename(table_name)
     table_class = $model_classes[class_name]
-    table_class = $dangling_classes[class_name] if !table_class
-    if !table_class
+    table_class ||= $dangling_classes[class_name]
+    unless table_class
       table_class = File_class.new("")
       table_class.is_activerecord = true
       $dangling_classes[class_name] = table_class
     end
     # puts "table_name : #{table_name}" if $debug_mode
     next unless child[-1].type.to_s == "do_block"
-    if child[-1][-1].type.to_s == "list"
-      child[-1][-1].children.each do |cc|
-        next unless cc.type.to_s == "call"
-        next unless cc[2].source == "up"
-        next unless cc[-1].type.to_s == "brace_block"
-        next unless cc[-1][1][0]&.type.to_s == "command_call"
-        ccc = cc[-1][1][0][-1]
-        next unless ccc&.type.to_s == "list"
-        column_name = handle_symbol_literal_node(ccc[0]) || handle_string_literal_node(ccc[0])
-        column_type = handle_symbol_literal_node(ccc[1]) || handle_string_literal_node(ccc[1])
-        dic == extract_hash_from_list(ast)
-        old_column = table_class.getColumns[column_name]
-        next if !(column_name and table_class and column_name)
-        column = Column.new(table_class, column_name, column_type, $cur_class)
-        column.prev_column = old_column
-        table_class.addColumn(column)
-        constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
-        table_class.addConstraints(constraints)
-      end
+
+    next unless child[-1][-1].type.to_s == "list"
+
+    child[-1][-1].children.each do |cc|
+      next unless cc.type.to_s == "call"
+      next unless cc[2].source == "up"
+      next unless cc[-1].type.to_s == "brace_block"
+      next unless cc[-1][1][0]&.type.to_s == "command_call"
+
+      ccc = cc[-1][1][0][-1]
+      next unless ccc&.type.to_s == "list"
+
+      column_name = handle_symbol_literal_node(ccc[0]) || handle_string_literal_node(ccc[0])
+      column_type = handle_symbol_literal_node(ccc[1]) || handle_string_literal_node(ccc[1])
+      dic == extract_hash_from_list(ast)
+      old_column = table_class.getColumns[column_name]
+      next unless column_name && table_class && column_name
+
+      column = Column.new(table_class, column_name, column_type, $cur_class)
+      column.prev_column = old_column
+      table_class.addColumn(column)
+      constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
+      table_class.addConstraints(constraints)
     end
   end
 end
 
 def create_constraints(class_name, column_name, column_type, type, dic)
   return [] unless dic
-  return [] unless dic.length > 0
-  return [] if %w(timestamps spatial).include? column_type
+  return [] if dic.empty?
+  return [] if %w[timestamps spatial].include? column_type
+
   constraints = []
   if dic["null"]
     null = dic["null"].source
@@ -289,22 +285,20 @@ def create_constraints(class_name, column_name, column_type, type, dic)
       constraints << constraint
     end
   end
-  #
   if dic["limit"]
     limit = dic["limit"].source
     constraint = Length_constraint.new(class_name, column_name, type)
-    constraint.max_value = limit.to_i if limit != "nil" and limit.to_i
+    constraint.max_value = limit.to_i if (limit != "nil") && limit.to_i
     constraints << constraint
   end
-  return constraints
+  constraints
 end
 
 def handle_remove_column(ast)
   handle_change_column(ast, true)
 end
 
-def handle_create_join_table(ast)
-end
+def handle_create_join_table(ast); end
 
 def handle_remove_join_table(ast)
   # not found yet
@@ -318,6 +312,7 @@ def handle_add_timestamps(ast)
   class_name = convert_tablename(table_name)
   table_class = $model_classes[class_name] || $dangling_classes[class_name]
   return unless table_class
+
   column_type = "Timestamp"
   name1 = "created_at"
   name2 = "updated_at"
@@ -349,12 +344,12 @@ def handle_change_column_default(ast)
   puts "#{table} = #{column_name} = #{column_type} --- #{dic}" if $debug_mode
   class_name = convert_tablename(table)
   table_class = $model_classes[class_name]
-  table_class = $dangling_classes[class_name] if !table_class
-  if !table_class
+  table_class ||= $dangling_classes[class_name]
+  unless table_class
     table_class = File_class.new("")
     $dangling_classes[class_name] = table_class
   end
-  if table and column_name and table_class
+  if table && column_name && table_class
     table_class = $model_classes[class_name]
     columns = table_class.getColumns
     column = columns[column_name]
@@ -373,10 +368,11 @@ def handle_rename_table(ast)
   new_class_name = convert_tablename(new_table_name)
   # puts "n: #{new_class_name} o: #{old_class_name}" if $debug_mode
   old_class = $model_classes[old_table_name]
-  old_class = $dangling_classes[old_class_name] if !old_class
+  old_class ||= $dangling_classes[old_class_name]
   new_class = $model_classes[new_class_name]
-  return if !(old_class and new_class)
-  old_class.getColumns.each do |k, v|
+  return unless old_class && new_class
+
+  old_class.getColumns.each do |_k, v|
     new_class.addColumn(v)
     v.table_class = new_class
   end
@@ -389,10 +385,8 @@ def handle_drop_table(ast)
   table_name = handle_symbol_literal_node(children[0]) || handle_string_literal_node(children[0])
   class_name = convert_tablename(table_name)
   table_class = $model_classes[class_name]
-  table_class = $dangling_classes[class_name] unless table_class
-  if table_class
-    table_class.is_deleted = true
-  end
+  table_class ||= $dangling_classes[class_name]
+  table_class.is_deleted = true if table_class
 end
 
 def handle_add_index(ast)
@@ -412,7 +406,7 @@ def handle_add_index(ast)
 
   class_name = convert_tablename(table_name)
   table_class = $model_classes[class_name] || $dangling_classes[class_name]
-  if !table_class
+  unless table_class
     table_class = File_class.new("")
     table_class.is_activerecord = true
     $dangling_classes[class_name] = table_class
@@ -420,16 +414,13 @@ def handle_add_index(ast)
 
   dic = extract_hash_from_list(children[2])
   index_name = dic["name"]&.source || handle_symbol_literal_node(dic["name"]) || handle_string_literal_node(dic["name"])
-  index_name = index_name || "#{table_name}_#{columns.join("_")}"
+  index_name ||= "#{table_name}_#{columns.join('_')}"
   new_index = Index.new(index_name, table_name, columns)
-  if dic["unique"]&.source == "true"
-    new_index.unique = true
-  end
+  new_index.unique = true if dic["unique"]&.source == "true"
   table_class.addIndex(new_index)
 end
 
-def handle_remove_index(ast)
-end
+def handle_remove_index(ast); end
 
 def handle_rename_column(ast)
   children = ast.children
@@ -438,7 +429,7 @@ def handle_rename_column(ast)
   new_column_name = handle_symbol_literal_node(children[2]) || handle_string_literal_node(children[2])
   class_name = convert_tablename(table_name)
   table_class = $model_classes[class_name]
-  table_class = $dangling_classes[class_name] unless table_class
+  table_class ||= $dangling_classes[class_name]
   if table_class
     column = table_class.getColumns[old_column_name]
     column.column_name = new_column_name
@@ -446,16 +437,15 @@ def handle_rename_column(ast)
     new_constraints = []
     constraints.each do |k, v|
       prefix = "#{class_name}-#{old_column_name}-"
-      if k.start_with? prefix
-        v.column = new_column_name
-        new_constraints << v
-        # delete the old key instead of setting it to be nil
-        constraints.delete(k)
-      end
+      next unless k.start_with? prefix
+
+      v.column = new_column_name
+      new_constraints << v
+      # delete the old key instead of setting it to be nil
+      constraints.delete(k)
     end
     table_class.addConstraints(new_constraints)
   end
 end
 
-def handle_rename_index(ast)
-end
+def handle_rename_index(ast); end
