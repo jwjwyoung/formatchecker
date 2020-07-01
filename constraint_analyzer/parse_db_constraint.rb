@@ -1,71 +1,80 @@
 def parse_db_constraint_file(ast)
-  if ast.type.to_s == "list"
+  case ast.type
+  when :list
     ast.children.each do |child|
       parse_db_constraint_file(child)
     end
-  end
-  if ast.type.to_s == "call"
-    if ast[-1]&.type&.to_s == "do_block"
-      parse_db_constraint_file(ast[-1][-1])
-    end
-  end
-
-  if ast.type.to_s == "class"
+  when :call
+    parse_db_constraint_file(ast[-1][-1]) if ast[-1]&.type&.to_s == "do_block"
+  when :class
     # puts"ast.children #{ast.children[0].source}"
     c3 = ast.children[2]
     if c3
       # puts"c3: #{c3.type}"
       parse_db_constraint_file(c3)
     end
-  end
-  if ast.type.to_s == "def" or ast.type.to_s == "defs"
-    funcname = ast[0].source
-    if ast[1] and ast[1].type.to_s == "period"
-      funcname = ast[2].source
+  when :def, :defs
+    funcname = if ast[1] && ast[1].type.to_s == "period"
+                 ast[2].source
+               else
+                 ast[0].source
+               end
+    parse_db_constraint_file(ast[-1]) unless funcname.include? "down"
+  when :fcall
+    if ast[0].source == "reversible"
+      handle_reversible(ast)
+    else
+      funcname = ast[0].source
+      parse_db_constraint_function(nil, funcname, ast)
     end
-    # puts"funcname: #{funcname} "
-    if !funcname.include? "down"
-      parse_db_constraint_file(ast[-1])
-    end
-  end
-  if ast.type.to_s == "fcall" and ast[0].source == "reversible"
-    handle_reversible(ast)
-  end
-  if ast.type.to_s == "fcall"
+  when :command
     funcname = ast[0].source
-    # puts ("fcall #{funcname}")
     parse_db_constraint_function(nil, funcname, ast)
-  end
-  if ast.type.to_s == "command"
-    funcname = ast[0].source
-    # puts "callname: #{funcname}"
-    parse_db_constraint_function(nil, funcname, ast)
-  end
-  if ast.type.to_s == "if_mod"
+  when :if_mod
     parse_db_constraint_file(ast[-1])
   end
 end
 
 def parse_db_constraint_function(table, funcname, ast)
   ast[1] = ast[1][0] if ast[1].type.to_s == "arg_paren"
-  handle_add_column(ast[1]) if funcname == "add_column"
-  handle_create_table(ast) if funcname == "create_table"
-  handle_change_column(ast[1]) if funcname == "change_column"
-  handle_change_table(ast) if funcname == "change_table"
-  handle_change_column_null(ast) if funcname == "change_column_null"
-  handle_remove_column(ast[1]) if funcname == "remove_column"
-  parse_sql(ast[1]) if funcname == "execute"
-  handle_create_join_table(ast) if funcname == "create_join_table"
-  handle_drop_table(ast[1]) if funcname == "drop_table"
-  handle_remove_timestamps(ast) if funcname == "remove_timestamps"
-  handle_add_timestamps(ast[1]) if funcname == "add_timestamps"
-  handle_add_index(ast[1]) if funcname == "add_index"
-  handle_remove_index(ast[1]) if funcname == "remove_index"
-  handle_rename_index(ast) if funcname == "rename_index"
-  handle_remove_join_table(ast) if funcname == "remove_join_table"
-  handle_change_column_default(ast[1]) if funcname == "change_column_default"
-  handle_rename_table(ast[1]) if funcname == "rename_table"
-  handle_rename_column(ast[1]) if funcname == "rename_column"
+  case funcname
+  when "add_column"
+    handle_add_column(ast[1])
+  when "create_table"
+    handle_create_table(ast)
+  when "change_column"
+    handle_change_column(ast[1])
+  when "change_table"
+    handle_change_table(ast)
+  when "change_column_null"
+    handle_change_column_null(ast)
+  when "remove_column"
+    handle_remove_column(ast[1])
+  when "execute"
+    parse_sql(ast[1])
+  when "create_join_table"
+    handle_create_join_table(ast)
+  when "drop_table"
+    handle_drop_table(ast[1])
+  when "remove_timestamps"
+    handle_remove_timestamps(ast)
+  when "add_timestamps"
+    handle_add_timestamps(ast[1])
+  when "add_index"
+    handle_add_index(ast[1])
+  when "remove_index"
+    handle_remove_index(ast[1])
+  when "rename_index"
+    handle_rename_index(ast)
+  when "remove_join_table"
+    handle_remove_join_table(ast)
+  when "change_column_default"
+    handle_change_column_default(ast[1])
+  when "rename_table"
+    handle_rename_table(ast[1])
+  when "rename_column"
+    handle_rename_column(ast[1])
+  end
 end
 
 def handle_change_table(ast)
