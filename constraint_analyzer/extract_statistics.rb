@@ -66,7 +66,7 @@ def extract_commits(directory, interval = 5, tag_unit = true)
   commits = tags.lines.reverse.map(&:strip) if tag_unit
   # puts "commits.length: #{commits.length}"
   if !commits || commits.length < 10
-    commits = `python commits.py #{directory}`
+    commits = `python2 commits.py #{directory}`
     commits = commits.lines
     interval = 100
   else
