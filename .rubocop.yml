@@ -1,0 +1,34 @@
+# https://docs.rubocop.org/rubocop/configuration.html
+
+Metrics:
+  Enabled: false
+
+Lint/ShadowingOuterLocalVariable:
+  Enabled: false
+
+Lint/SuppressedException:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
+  AutoCorrect: false
+
+Naming:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  EnforcedStyle: never
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  Enabled: false
+
+Style/GlobalVars:
+  Enabled: false
+
+Style/NumericPredicate:
+  Enabled: false

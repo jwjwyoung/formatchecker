@@ -1,5 +1,6 @@
 class File_class
-  attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices, :contents, :functions, :has_many_classes
+  attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices,
+                :contents, :functions, :has_many_classes
 
   def initialize(filename)
     @filename = filename
@@ -27,17 +28,19 @@ class File_class
       printFunction(k, v)
     end
   end
+
   def addHasMany(column, dic)
-    if dic["dependent"]
-      has_many_classes[column] = true
-    else
-      has_many_classes[column] = false
-    end
+    has_many_classes[column] = if dic["dependent"]
+                                 true
+                               else
+                                 false
+                               end
     puts "#{column} #{has_many_classes[column]}"
   end
+
   def printFunction(k, v)
     puts "====start of function #{k}===="
-    puts "#{v.source}"
+    puts v.source.to_s
     puts "====end of function #{k}===="
   end
 
@@ -46,30 +49,28 @@ class File_class
       # puts"constraint #{constraint.class}"
       key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
       @constraints[key] = constraint
-      constraint.table = self.class_name
+      constraint.table = class_name
     end
     puts "@constraints.size #{@constraints.length}" if $debug_mode
   end
 
   def check_whether_column_has_constraints
-    @constraints.each do |k, v|
-      column = self.getColumns[v.column]
-      if column
-        column.has_constraints = true
-      end
+    @constraints.each do |_k, v|
+      column = getColumns[v.column]
+      column.has_constraints = true if column
     end
   end
 
   def getConstraints
-    return @constraints
+    @constraints
   end
 
   def getColumns
-    return @columns
+    @columns
   end
 
   def getColumnsLength
-    return @columns.length
+    @columns.length
   end
 
   def addForeignKey(key_name)
@@ -77,7 +78,7 @@ class File_class
   end
 
   def getForeignKeys
-    return @foreign_keys
+    @foreign_keys
   end
 
   def addColumn(column)
@@ -89,27 +90,25 @@ class File_class
   end
 
   def getInstanceVarRefs
-    return @instance_var_refs
+    @instance_var_refs
   end
 
   def num_columns_has_constraints
     check_whether_column_has_constraints
-    num = @columns.select { |k, v| v.has_constraints }.length
-    return @columns.length, num
+    num = @columns.select { |_k, v| v.has_constraints }.length
+    [@columns.length, num]
   end
 
   def create_con_from_column_type
     return unless @columns
-    @columns.each do |k, v|
+
+    @columns.each do |_k, v|
       next if v.is_deleted
+
       type = "db"
       column_type = v.column_type
-      if column_type == "string"
-        max_value = 255
-      end
-      if column_type == "text"
-        max_value = 65535
-      end
+      max_value = 255 if column_type == "string"
+      max_value = 65_535 if column_type == "text"
       column_name = v.column_name
       puts "max_value from type: #{max_value} #{column_name} #{column_type} #{@class_name}" if $debug_mode
       if max_value
@@ -117,55 +116,51 @@ class File_class
         constraint.max_value = max_value
         key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
         exist_con = @constraints[key]
-        if exist_con and (not exist_con.max_value || exist_con.max_value == "nil")
-          exist_con.max_value = max_value
-        end
-        if not exist_con
-          @constraints[key] = constraint
-        end
+        exist_con.max_value = max_value if exist_con && !(exist_con.max_value || exist_con.max_value == "nil")
+        @constraints[key] = constraint unless exist_con
       end
-      if ["float", "integer", "decimal"].include? column_type
-        constraint = Numericality_constraint.new(@class_name, column_name, type)
-        if column_type == "integer"
-          constraint.only_integer = true
-        end
-        key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
-        @constraints[key] = constraint
-      end
+      next unless %w[float integer decimal].include? column_type
+
+      constraint = Numericality_constraint.new(@class_name, column_name, type)
+      constraint.only_integer = true if column_type == "integer"
+      key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
+      @constraints[key] = constraint
     end
   end
 
   def create_con_from_index
     return unless @indices
-    @indices.each do |k, v|
-      if v.unique
-        type = "db"
-        constraint = Uniqueness_constraint.new(@class_name, v.columns, type)
-        key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
-        @constraints[key] = constraint
-      end
+
+    @indices.each do |_k, v|
+      next unless v.unique
+
+      type = "db"
+      constraint = Uniqueness_constraint.new(@class_name, v.columns, type)
+      key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
+      @constraints[key] = constraint
     end
   end
 
   def create_con_from_format
     return unless @constraints
-    cons = []
-    @constraints.each do |k, v|
-      if v.is_a? Format_constraint and v.with_format
-        constraint = derive_length_constraint_from_format(v)
-        next if constraint.nil?
 
-        key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
-        if (existing_constraint = @constraints[key])
-          existing_constraint.min_value = [constraint.min_value, existing_constraint.min_value].compact.max
-          existing_constraint.max_value = [constraint.max_value, existing_constraint.max_value].compact.min
-        else
-          cons << constraint
-        end
+    cons = []
+    @constraints.each do |_k, v|
+      next unless v.is_a?(Format_constraint) && v.with_format
+
+      constraint = derive_length_constraint_from_format(v)
+      next if constraint.nil?
+
+      key = "#{@class_name}-#{constraint.column}-#{constraint.class.name}-#{constraint.type}"
+      if (existing_constraint = @constraints[key])
+        existing_constraint.min_value = [constraint.min_value, existing_constraint.min_value].compact.max
+        existing_constraint.max_value = [constraint.max_value, existing_constraint.max_value].compact.min
+      else
+        cons << constraint
       end
     end
 
-    self.addConstraints(cons)
+    addConstraints(cons)
   end
 
   def extract_instance_var_refs
@@ -177,7 +172,8 @@ end
 
 class Column
   # belongs to model class which is active record
-  attr_accessor :column_type, :column_name, :file_class, :prev_column, :is_deleted, :default_value, :table_class, :auto_increment, :has_constraints
+  attr_accessor :column_type, :column_name, :file_class, :prev_column, :is_deleted, :default_value,
+                :table_class, :auto_increment, :has_constraints
 
   def initialize(table_class, column_name, column_type, file_class, dic = {})
     @table_class = table_class
@@ -187,12 +183,12 @@ class Column
     @is_deleted = false
     @auto_increment = false
     @has_constraints = false
-    self.parse(dic)
-    puts "dic: #{dic.to_s}" if $debug_mode
+    parse(dic)
+    puts "dic: #{dic}" if $debug_mode
   end
 
   def getTableClass
-    return @table_class
+    @table_class
   end
 
   def setTable(table_class)
@@ -200,18 +196,17 @@ class Column
   end
 
   def parse(dic)
-    puts "dic #{dic["default"]&.type}" if $debug_mode
+    puts "dic #{dic['default']&.type}" if $debug_mode
     ast = dic["default"]
     if ast
       value = dic["default"]&.source if dic["default"]&.type.to_s == "var_ref"
-      @default_value = value || handle_symbol_literal_node(ast) || handle_string_literal_node(ast) || handle_numeric_literal_node(ast)
+      @default_value = value || handle_symbol_literal_node(ast) || handle_string_literal_node(ast) ||
+                       handle_numeric_literal_node(ast)
     end
-    if dic["auto_increment"]
-      value = handle_symbol_literal_node(ast) || handle_string_literal_node(ast)
-      if value == "true"
-        @auto_increment = true
-      end
-    end
+    return unless dic["auto_increment"]
+
+    value = handle_symbol_literal_node(ast) || handle_string_literal_node(ast)
+    @auto_increment = true if value == "true"
   end
 end
 
