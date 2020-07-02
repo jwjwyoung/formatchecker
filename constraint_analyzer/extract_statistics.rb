@@ -288,7 +288,7 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
 
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
-  `mkdir #{version_his_folder}` unless File.exist? version_his_folder
+  Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
   yaml_version = version_his_folder + versions[0].commit.gsub("/", "-")
   if File.exist?(yaml_version)
     versions[0] = YAML.safe_load(File.read(yaml_version))
@@ -303,7 +303,7 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   version = versions[0]
   content = "#{version.loc} #{version.total_constraints_num} #{version.db_constraints_num} #{version.model_constraints_num} #{version.html_constraints_num}\n"
   output_diff_codechange.write(content)
-  `mkdir #{log_dir}` unless File.exist? log_dir
+  Dir.mkdir(log_dir) unless File.exist? log_dir
   output_html_constraints = File.open("#{log_dir}/html_constraints.log", "w")
   cnt = 0
   sum1 = sum2 = sum3 = sum4 = sum5 = sum6 = sum7 = sum8 = sumh1 = sumh2 = sumh3 = sumh4 = 0
@@ -400,7 +400,7 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
 
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
-  `mkdir #{version_his_folder}` unless File.exist? version_his_folder
+  Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
   yaml_version = version_his_folder + versions[0].commit.gsub("/", "-")
   if File.exist?(yaml_version)
     versions[0] = YAML.safe_load(File.read(yaml_version))
