@@ -66,14 +66,9 @@ def read_constraint_files(application_dir = nil, version = "")
       $code = ""
       $fn = filename
       parse_controller_file(ast)
-      if $code
-        puts "#{filename} #{$write_action_num} #{$no_resuce_num}"
-        puts $code
-      end
     rescue
     end
   end
-  puts "#{$write_action_num} #{$no_resuce_num}"
   exit if ENV["rescue"]
   model_files.each do |filename|
     begin

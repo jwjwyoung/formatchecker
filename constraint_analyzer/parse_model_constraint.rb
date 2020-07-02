@@ -51,7 +51,6 @@ def parse_model_constraint_file(ast)
     if funcname == "has_many" || funcname == "belongs_to" 
       columns = []
       dic = {}
-      puts "#{funcname} #{ast.type}"
       ast[1].children.each do |child|
         if child.type.to_s == "symbol_literal"
           column = handle_symbol_literal_node(child)

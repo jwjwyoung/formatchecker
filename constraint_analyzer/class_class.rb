@@ -30,12 +30,7 @@ class File_class
   end
 
   def addHasMany(column, dic)
-    has_many_classes[column] = if dic["dependent"]
-                                 true
-                               else
-                                 false
-                               end
-    puts "#{column} #{has_many_classes[column]}"
+    has_many_classes[column] = dic["dependent"] ? true : false
   end
 
   def printFunction(k, v)

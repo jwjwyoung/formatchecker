@@ -27,7 +27,6 @@ OptionParser.new do |opts|
 
   opts.on("-a", "--app app", "please specify application dir") do |v|
     options[:app] = v
-    puts "v #{v}"
   end
   opts.on("-c", "--commit commit", "please specify which commit for parse single version (default is master)") do |v|
     options[:commit] = v

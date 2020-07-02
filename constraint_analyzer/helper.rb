@@ -4,7 +4,7 @@ def load_validate_api
   open(validate_api).readlines.each do |line|
     $validate_apis << line.strip
   end
-  puts $validate_apis
+  # puts $validate_apis
 end
 
 def load_html_constraint_api

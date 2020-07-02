@@ -53,9 +53,7 @@ end
 
 def extract_commits(directory, interval = 5, tag_unit = true)
   # reset to the most up to date commit
-  puts "cd #{directory}; git checkout -f master"
   `cd #{directory}; git checkout -f master`
-  puts "directory #{directory}"
 
   tags = `cd #{directory}; git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
   app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
@@ -72,7 +70,6 @@ def extract_commits(directory, interval = 5, tag_unit = true)
   else
     interval = 1
   end
-  puts "commits.length: #{commits.length}"
   versions = []
   i = 0
   commits.each do |commit|
@@ -84,7 +81,6 @@ def extract_commits(directory, interval = 5, tag_unit = true)
     i += 1
   end
   versions = versions.reverse[0...version_size].reverse
-  puts "versions.length: #{versions.length}"
   versions
 end
 
