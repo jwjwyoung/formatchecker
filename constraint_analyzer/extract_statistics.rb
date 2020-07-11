@@ -53,9 +53,9 @@ end
 
 def extract_commits(directory, interval = nil, tag_unit = true)
   # reset to the most up to date commit
-  `cd #{directory}; git checkout -f master`
+  `git -C '#{directory}' checkout -fq master`
 
-  tags = `cd #{directory}; git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
+  tags = `git -C '#{directory}' for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
   app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
                        "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26", "onebody" => "39",
                        "diaspora" => "86", "falling-fruit" => "12", "openstreetmap-website" => "95" }
