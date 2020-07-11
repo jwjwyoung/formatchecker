@@ -1,6 +1,7 @@
 class File_class
   attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices,
                 :contents, :functions, :has_many_classes
+  attr_reader :columns
 
   def initialize(filename)
     @filename = filename

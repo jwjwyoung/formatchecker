@@ -12,6 +12,7 @@ require_relative "./helper.rb"
 require_relative "./version_class.rb"
 require_relative "./extract_statistics.rb"
 require_relative "./ast_handler.rb"
+require_relative "./traverse_db_schema.rb"
 
 require "optparse"
 require "yard"
@@ -87,6 +88,9 @@ OptionParser.new do |opts|
     options[:dump_constraints] = true
     options[:dump_filename] = v
   end
+  opts.on("--tschema", "traverse DB schema") do |_|
+    options[:tschema] = true
+  end
 end.parse!
 
 $read_html = true
@@ -97,8 +101,7 @@ abort("Error: you must specify an application directory with the -a/--app option
 application_dir = options[:app]
 puts "application_dir #{application_dir}"
 
-interval = 1
-interval = options[:interval].to_i if options[:interval]
+interval = options[:interval] ? options[:interval].to_i : 1
 if options[:tva] && interval
   $read_html = false
   puts "travese_all_versions start options[:commit_unit] #{options[:commit_unit]}"
@@ -108,6 +111,8 @@ if options[:tva] && interval
     traverse_all_versions(application_dir, interval, true)
   end
 end
+
+traverse_all_for_db_schema(application_dir, interval) if options[:tschema]
 
 extract_table_size_comparison(application_dir, interval) if options[:compare_column_size] && interval
 
