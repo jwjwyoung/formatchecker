@@ -1,5 +1,8 @@
 # https://docs.rubocop.org/rubocop/configuration.html
 
+AllCops:
+  TargetRubyVersion: 2.7
+
 Metrics:
   Enabled: false
 
