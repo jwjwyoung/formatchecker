@@ -51,7 +51,7 @@ def median(array)
   end
 end
 
-def extract_commits(directory, interval = 5, tag_unit = true)
+def extract_commits(directory, interval = nil, tag_unit = true)
   # reset to the most up to date commit
   `cd #{directory}; git checkout -f master`
 
@@ -66,7 +66,8 @@ def extract_commits(directory, interval = 5, tag_unit = true)
   if !commits || commits.length < 10
     commits = `python2 commits.py #{directory}`
     commits = commits.lines
-    interval = 100
+    # default interval to 100
+    interval = interval.nil? ? 100 : interval
   else
     interval = 1
   end
@@ -80,7 +81,9 @@ def extract_commits(directory, interval = 5, tag_unit = true)
     end
     i += 1
   end
-  versions = versions.reverse[0...version_size].reverse
+  # For applications not in `app_version_size.keys`, it's `version_size` is zero,
+  # so don't chop the versions here.
+  versions = versions.reverse[0...version_size].reverse unless version_size.zero?
   versions
 end
 
@@ -289,14 +292,7 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
   Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
-  yaml_version = version_his_folder + versions[0].commit.gsub("/", "-")
-  if File.exist?(yaml_version)
-    versions[0] = YAML.safe_load(File.read(yaml_version))
-  else
-    versions[0].build
-    versions[0].clean
-    File.open(yaml_version, "w") { |f| f.write(YAML.dump(versions[0])) }
-  end
+  versions[0] = build_version(version_his_folder, versions[0])
   output = open("../log/output_#{app_name}.log", "w")
   output_diff_codechange = open("../log/codechange_#{app_name}.log", "w")
   log_dir = "../log/#{app_name}_log/"
@@ -312,15 +308,7 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   (1...versions.length).each do |i|
     puts "=============#{i} out of #{versions.length}============="
     new_version = versions[i - 1]
-    version = versions[i]
-    yaml_version = version_his_folder + version.commit.gsub("/", "-")
-    if File.exist?(yaml_version)
-      version = versions[i] = YAML.safe_load(File.read(yaml_version))
-    else
-      version.build
-      version.clean
-      File.open(yaml_version, "w") { |f| f.write(YAML.dump(version)) }
-    end
+    version = build_version(version_his_folder, versions[i])
     puts "Duration of reading: #{Time.now - start}"
     ncs, ccs, eccs, nccs, nmhcs = new_version.compare_constraints(version)
     # nmhcs => not matched html constraints with previous html/validate constraints
