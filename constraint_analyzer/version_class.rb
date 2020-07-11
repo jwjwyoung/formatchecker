@@ -533,7 +533,8 @@ class Version_class
     rescue StandardError
     end
     extract_validate_functions
-    puts "@active_files : #{@activerecord_files.size}"
+    # @activerecord_files may contain files in vendor/bundle
+    @activerecord_files.reject! { |_, v| v.filename.include? "vendor/bundle/" }
   end
 
   def extract_validate_functions
