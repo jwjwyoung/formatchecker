@@ -34,6 +34,9 @@ def read_constraint_files(application_dir = nil, version = "")
   controller_files = []
   for filename in files
     filename = filename.to_s
+    # filter out dependency files
+    next if filename.include? "vendor/bundle/"
+
     if filename.include?("app/models/")
       model_files << filename
     end
