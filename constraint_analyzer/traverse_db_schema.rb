@@ -17,6 +17,10 @@ class Version_class
         puts "new column #{col} in table #{key}: #{file.filename}@#{@commit[..8]}"
       end
     end
+    old_vers.activerecord_files.each_key.reject { |k| @activerecord_files[k] }.each do |key|
+      # missing new file: delete table
+      puts "del table #{key}: #{@commit[..8]}"
+    end
   end
 end
 
