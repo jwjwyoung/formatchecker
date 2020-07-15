@@ -99,7 +99,6 @@ $read_db = true
 abort("Error: you must specify an application directory with the -a/--app option") unless options[:app]
 
 application_dir = options[:app]
-puts "application_dir #{application_dir}"
 
 interval = options[:interval] ? options[:interval].to_i : 1
 if options[:tva] && interval
@@ -112,7 +111,10 @@ if options[:tva] && interval
   end
 end
 
-traverse_all_for_db_schema(application_dir, interval) if options[:tschema]
+if options[:tschema]
+  $read_html = false
+  traverse_all_for_db_schema(application_dir, options[:interval])
+end
 
 extract_table_size_comparison(application_dir, interval) if options[:compare_column_size] && interval
 

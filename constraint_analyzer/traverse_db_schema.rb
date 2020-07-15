@@ -4,35 +4,49 @@ class Version_class
     @activerecord_files.each_key do |key|
       file = @activerecord_files[key]
       old_file = old_vers.activerecord_files[key]
+      # Add table: missing old file
       unless old_file
-        # missing old file: added table
         puts "new table #{key}: #{file.filename}@#{@commit}"
         tab_add += 1
         next
       end
-      # present in new file but missing in old file: added column
+
+      # Add column: present in new file but missing in old file
       file.columns.each_key.reject { |k| old_file.columns.keys.include? k }.each do |col|
         puts "new column #{col} in table #{key}: #{file.filename}@#{@commit}"
         col_add += 1
       end
+
       old_file.columns.each_key do |col|
-        old_name = old_file.columns[col].column_name
+        old_col = old_file.columns[col]
+        old_name = old_col.column_name
         new_col = file.columns[col]
+        # Delete column
+        # 1. new_col will be nil if a migration file is deleted (typically in rollup migrations)
+        #    (TracksApp/tracks@v1.6..v1.7, seven1m/onebody@3.6.0..3.7.0, etc.)
         if new_col.nil?
-          # present in old file but missing in new file: deleted column
-          puts "del column #{col} in table #{key}: #{file.filename}@#{@commit}"
+          puts "--del column #{old_name} in table #{key}: #{file.filename}@#{@commit}"
           col_del += 1
           next
         end
+        # 2. the first occurrence of true of is_deleted marks a deletion
+        if new_col.is_deleted && !old_col.is_deleted
+          puts "del column #{old_name} in table #{key}: #{file.filename}@#{@commit}"
+          col_del += 1
+          next
+        end
+
+        # Rename column
         new_name = new_col.column_name
         if old_name != new_name
-          puts "rename column #{old_name} → #{new_name}: #{file.filename}@#{@commit}"
+          puts "rename column #{old_name} → #{new_name} in table #{key}: #{file.filename}@#{@commit}"
           col_ren += 1
         end
       end
     end
+
+    # Delete table: missing new file
     old_vers.activerecord_files.each_key.reject { |k| @activerecord_files[k] }.each do |key|
-      # missing new file: delete table
       puts "del table #{key}: #{@commit}"
       tab_del += 1
     end
