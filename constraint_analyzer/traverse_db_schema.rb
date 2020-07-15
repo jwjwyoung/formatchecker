@@ -61,9 +61,15 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
 
   versions.map! { |v| build_version(version_his_folder, v) }
-  # newest versions comes first
+  version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0 }
+  # newest versions come first
   versions.each_cons(2).each do |newv, curv|
     col_add, col_del, col_ren, tab_add, tab_del = newv.compare_db_schema(curv)
+    version_with[:col_add] += col_add
+    version_with[:col_del] += col_del
+    version_with[:col_ren] += col_ren
+    version_with[:tab_add] += tab_add
+    version_with[:tab_del] += tab_del
     puts "#{newv.commit[..7]} #{col_add}, #{col_del}, #{col_ren}, #{tab_add}, #{tab_del}"
   end
 end
