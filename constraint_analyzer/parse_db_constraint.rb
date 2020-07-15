@@ -377,6 +377,7 @@ def handle_rename_table(ast)
     v.table_class = new_class
   end
   old_class.is_deleted = true
+  new_class.prev_class_name = old_class_name
   new_class.addConstraints(old_class.getConstraints.values)
 end
 

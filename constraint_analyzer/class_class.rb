@@ -1,6 +1,6 @@
 class File_class
   attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices,
-                :contents, :functions, :has_many_classes
+                :contents, :functions, :has_many_classes, :prev_class_name
   attr_reader :columns
 
   def initialize(filename)
@@ -18,6 +18,7 @@ class File_class
     @contents = ""
     @functions = {}
     @has_many_classes = {}
+    @prev_class_name = nil
   end
 
   def addFunction(funcname, ast)

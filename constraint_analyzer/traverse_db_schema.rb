@@ -1,13 +1,21 @@
 class Version_class
   def compare_db_schema(old_vers)
-    col_add = col_del = col_ren = tab_add = tab_del = 0
+    col_add = col_del = col_ren = tab_add = tab_del = tab_ren = 0
+    renamed_tab = []
     @activerecord_files.each_key do |key|
       file = @activerecord_files[key]
       old_file = old_vers.activerecord_files[key]
-      # Add table: missing old file
       unless old_file
-        puts "new table #{key}: #{file.filename}@#{@commit}"
-        tab_add += 1
+        if file.prev_class_name.nil?
+          # Add table: missing old file, don't have prev_class_name
+          puts "new table #{key}: #{file.filename}@#{@commit}"
+          tab_add += 1
+        else
+          # Rename table: has prev_class_name
+          puts "rename table #{file.prev_class_name} → #{key}: #{file.filename}@#{@commit}"
+          tab_ren += 1
+          renamed_tab.push(file.prev_class_name)
+        end
         next
       end
 
@@ -46,11 +54,14 @@ class Version_class
     end
 
     # Delete table: missing new file
-    old_vers.activerecord_files.each_key.reject { |k| @activerecord_files[k] }.each do |key|
+    dtab = old_vers.activerecord_files.each_key.reject do |k|
+      @activerecord_files[k] || renamed_tab.include?(k)
+    end
+    dtab.each do |key|
       puts "del table #{key}: #{@commit}"
       tab_del += 1
     end
-    [col_add, col_del, col_ren, tab_add, tab_del]
+    [col_add, col_del, col_ren, tab_add, tab_del, tab_ren]
   end
 end
 
@@ -75,15 +86,15 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
 
   versions.map! { |v| build_version(version_his_folder, v) }
-  version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0 }
+  version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
-    col_add, col_del, col_ren, tab_add, tab_del = newv.compare_db_schema(curv)
+    col_add, col_del, col_ren, tab_add, tab_del, tab_ren = newv.compare_db_schema(curv)
     version_with[:col_add] += col_add
     version_with[:col_del] += col_del
     version_with[:col_ren] += col_ren
     version_with[:tab_add] += tab_add
     version_with[:tab_del] += tab_del
-    puts "#{newv.commit[..7]} #{col_add}, #{col_del}, #{col_ren}, #{tab_add}, #{tab_del}"
+    version_with[:tab_ren] += tab_ren
   end
 end
