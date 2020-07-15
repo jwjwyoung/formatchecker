@@ -64,8 +64,7 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   commits = tags.lines.reverse.map(&:strip) if tag_unit
   # puts "commits.length: #{commits.length}"
   if !commits || commits.length < 10
-    commits = `python2 commits.py #{directory}`
-    commits = commits.lines
+    commits = `git -C '#{directory}' log --format=format:%H`.lines
     # default interval to 100
     interval = interval.nil? ? 100 : interval
   else
