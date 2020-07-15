@@ -6,13 +6,13 @@ class Version_class
       old_file = old_vers.activerecord_files[key]
       unless old_file
         # missing old file: added table
-        puts "new table #{key}: #{file.filename}@#{@commit[..8]}"
+        puts "new table #{key}: #{file.filename}@#{@commit}"
         tab_add += 1
         next
       end
       # present in new file but missing in old file: added column
       file.columns.each_key.reject { |k| old_file.columns.keys.include? k }.each do |col|
-        puts "new column #{col} in table #{key}: #{file.filename}@#{@commit[..8]}"
+        puts "new column #{col} in table #{key}: #{file.filename}@#{@commit}"
         col_add += 1
       end
       old_file.columns.each_key do |col|
@@ -20,20 +20,20 @@ class Version_class
         new_col = file.columns[col]
         if new_col.nil?
           # present in old file but missing in new file: deleted column
-          puts "del column #{col} in table #{key}: #{file.filename}@#{@commit[..8]}"
+          puts "del column #{col} in table #{key}: #{file.filename}@#{@commit}"
           col_del += 1
           next
         end
         new_name = new_col.column_name
         if old_name != new_name
-          puts "rename column #{old_name} → #{new_name}: #{file.filename}@#{@commit[..8]}"
+          puts "rename column #{old_name} → #{new_name}: #{file.filename}@#{@commit}"
           col_ren += 1
         end
       end
     end
     old_vers.activerecord_files.each_key.reject { |k| @activerecord_files[k] }.each do |key|
       # missing new file: delete table
-      puts "del table #{key}: #{@commit[..8]}"
+      puts "del table #{key}: #{@commit}"
       tab_del += 1
     end
     [col_add, col_del, col_ren, tab_add, tab_del]
