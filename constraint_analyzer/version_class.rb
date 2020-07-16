@@ -62,7 +62,7 @@ class Version_class
     end
     @total_constraints_num = @db_constraints_num + @model_constraints_num + @html_constraints_num
     total_constraints = @activerecord_files.map { |_k, v| v.getConstraints.length }.reduce(:+)
-    puts "total_constraints #{total_constraints} #{@total_constraints_num} #{num}"
+    # puts "total_constraints #{total_constraints} #{@total_constraints_num} #{num}"
   end
 
   def extract_case_insensitive_columns

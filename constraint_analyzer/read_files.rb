@@ -55,7 +55,7 @@ def read_constraint_files(application_dir = nil, version = "")
     end
   end
 
-  puts "controller_files #{controller_files.length}"
+  # puts "controller_files #{controller_files.length}"
   $write_action_num = 0
   $no_resuce_num = 0
   controller_files.each do |filename|

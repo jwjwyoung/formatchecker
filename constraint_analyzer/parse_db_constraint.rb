@@ -333,7 +333,7 @@ end
 def handle_change_column_default(ast)
   # puts "handle_change_column_default" if $debug_mode
   children = ast.children
-  puts "ast.source #{ast.source} \n#{ast[0].type}"
+  # puts "ast.source #{ast.source} \n#{ast[0].type}"
   table = nil
   column_name = nil
   column_type = nil

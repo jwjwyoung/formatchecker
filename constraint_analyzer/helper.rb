@@ -64,7 +64,7 @@ def derive_length_from_format(format)
       max_value = examples.map(&:length).max
     end
   rescue
-    puts "cannot parse regex: #{format}"
+    # puts "cannot parse regex: #{format}"
   end
 
   return min_value, max_value

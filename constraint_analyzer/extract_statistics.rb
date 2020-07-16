@@ -62,7 +62,6 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   app_name = directory.split("/")[-1]
   version_size = app_version_size[app_name].to_i
   commits = tags.lines.reverse.map(&:strip) if tag_unit
-  # puts "commits.length: #{commits.length}"
   if !commits || commits.length < 10
     commits = `git -C '#{directory}' log --format=format:%H`.lines
     # default interval to 100
