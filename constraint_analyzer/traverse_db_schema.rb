@@ -1,6 +1,18 @@
 require "csv"
 
 class Version_class
+  # Gets information about {table,column}{add,delete,rename} between `self` and `old_vers`.
+  # Provide a block to this method to go through the differences. The arguments of the block
+  # should be in the following order.
+  #
+  # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren, :col_add, :col_del, :col_ren];
+  # 2. the table involved in the change. For table rename, this is the new name;
+  # 3. other arguments:
+  #
+  #      * `:tab_add`, `:tab_del`: no more arguments
+  #      * `:tab_ren`: the previous table name
+  #      * `:col_add`, `:col_del`: the added/deleted column name
+  #      * `:col_ren`: the new name and the previous name
   def compare_db_schema(old_vers)
     col_add = col_del = col_ren = tab_add = tab_del = tab_ren = 0
     renamed_tab = []
@@ -98,6 +110,8 @@ def build_version(yaml_root, version)
   end
 end
 
+# Prints the number of different types of changes in every version and the
+# total number in all versions to a CSV file specified by `path`.
 def output_csv_schema_change(path, version_chg, total_action)
   CSV.open(path, "wb") do |csv|
     csv << ["version", "column add", "column delete", "column rename",
@@ -112,8 +126,18 @@ def output_csv_schema_change(path, version_chg, total_action)
   end
 end
 
+# Gets the versions for `app_dir`. If the file "#{app_dir}/versions" exists, every line
+# in the file is treated as a version. Otherwise use the original `extract_commits`.
+def get_versions(app_dir, interval)
+  if File.readable?(File.join(app_dir, "versions"))
+    File.read(File.join(app_dir, "versions")).lines.map { |v| Version_class.new(app_dir, v) }
+  else
+    extract_commits(app_dir, interval)
+  end
+end
+
 def traverse_all_for_db_schema(app_dir, interval = nil)
-  versions = extract_commits(app_dir, interval)
+  versions = get_versions(app_dir, interval)
   return if versions.length <= 0
 
   app_name = File.basename(app_dir)

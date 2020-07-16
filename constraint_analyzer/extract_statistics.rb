@@ -72,6 +72,7 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   end
   versions = []
   i = 0
+  # exclude release candidates, beta versions and alike
   good_commits = commits.reject do |c|
     d = c.downcase
     d.include?("rc") || d.include?("pre") || d.include?("beta")
