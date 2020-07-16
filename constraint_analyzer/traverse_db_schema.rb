@@ -1,4 +1,5 @@
 require "csv"
+require "parallel"
 
 class Version_class
   # Gets information about {table,column}{add,delete,rename} between `self` and `old_vers`.
@@ -98,15 +99,23 @@ class Version_class
   end
 end
 
+# Builds a `Version_class` and save it to cache
 def build_version(yaml_root, version)
   yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
-  if File.exist?(yaml_dump)
-    Psych.load_file(yaml_dump)
-  else
+  unless File.exist? yaml_dump
     version.build
     version.clean
     File.open(yaml_dump, "w") { |f| f.write(Psych.dump(version)) }
-    version
+  end
+end
+
+# Loads a vendored `Version_class` from cache
+def load_version(yaml_root, version)
+  yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
+  if File.exist? yaml_dump
+    Psych.load_file(yaml_dump)
+  else
+    raise "#{yaml_dump} does not exist"
   end
 end
 
@@ -144,7 +153,8 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
   Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
 
-  versions.map! { |v| build_version(version_his_folder, v) }
+  versions.each { |v| build_version(version_his_folder, v) }
+  versions = Parallel.map(versions) { |v| load_version(version_his_folder, v) }
   version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   version_chg = []
   total_action = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
