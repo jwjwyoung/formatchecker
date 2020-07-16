@@ -72,7 +72,11 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   end
   versions = []
   i = 0
-  commits.each do |commit|
+  good_commits = commits.reject do |c|
+    d = c.downcase
+    d.include?("rc") || d.include?("pre") || d.include?("beta")
+  end
+  good_commits.each do |commit|
     if i % interval == 0
       version = Version_class.new(directory, commit)
       # version.build
