@@ -122,7 +122,7 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
 
   versions.map! { |v| build_version(version_his_folder, v) }
   version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
-  version_chg = {}
+  version_chg = []
   total_action = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
@@ -130,14 +130,17 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
     newv.compare_db_schema(curv) do |action, *args|
       this_version_has[action] += 1
     end
-    version_chg[newv.commit] = this_version_has
+    version_chg << [newv.commit, this_version_has]
     this_version_has.each do |ac, num|
       version_with[ac] += 1 unless num.zero?
       total_action[ac] += num
     end
   end
+  ver_with_change = 0
   version_chg.each do |ver, chg|
     puts "#{ver} #{chg}"
+    ver_with_change += 1 unless chg.values.all?(&:zero?)
   end
   p version_with
+  puts "#{ver_with_change} / #{versions.length - 1}"
 end
