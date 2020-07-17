@@ -295,7 +295,8 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
   Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
-  versions[0] = build_version(version_his_folder, versions[0])
+  build_version(version_his_folder, versions[0])
+  versions[0] = load_version(version_his_folder, versions[0])
   output = open("../log/output_#{app_name}.log", "w")
   output_diff_codechange = open("../log/codechange_#{app_name}.log", "w")
   log_dir = "../log/#{app_name}_log/"
@@ -311,7 +312,8 @@ def traverse_all_versions(application_dir, interval, tag_unit = true)
   (1...versions.length).each do |i|
     puts "=============#{i} out of #{versions.length}============="
     new_version = versions[i - 1]
-    version = build_version(version_his_folder, versions[i])
+    build_version(version_his_folder, versions[i])
+    versions[i] = load_version(version_his_folder, versions[i])
     puts "Duration of reading: #{Time.now - start}"
     ncs, ccs, eccs, nccs, nmhcs = new_version.compare_constraints(version)
     # nmhcs => not matched html constraints with previous html/validate constraints
