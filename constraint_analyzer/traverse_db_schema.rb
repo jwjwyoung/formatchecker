@@ -2,11 +2,12 @@ require "csv"
 require "parallel"
 
 class Version_class
-  # Gets information about {table,column}{add,delete,rename} between `self` and `old_vers`.
-  # Provide a block to this method to go through the differences. The arguments of the block
-  # should be in the following order.
+  # Gets information about {table,column}{add,delete,rename} and column type change
+  # between `self` and `old_vers`. Provide a block to this method to go through the
+  # differences. The arguments of the block should be in the following order.
   #
-  # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren, :col_add, :col_del, :col_ren];
+  # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren, :col_add, :col_del,
+  #      :col_ren, :col_type];
   # 2. the table involved in the change. For table rename, this is the new name;
   # 3. other arguments:
   #
@@ -14,42 +15,29 @@ class Version_class
   #      * `:tab_ren`: the previous table name
   #      * `:col_add`, `:col_del`: the added/deleted column name
   #      * `:col_ren`: the new name and the previous name
+  #      * `:col_type`: the column name, new type and old type
   def compare_db_schema(old_vers)
-    col_add = col_del = col_ren = tab_add = tab_del = tab_ren = 0
-    renamed_tab = []
+    raise "please provide a block to compare_db_schema" unless block_given?
+
+    renamed_tab = Set.new
     @activerecord_files.each_key do |key|
       file = @activerecord_files[key]
       old_file = old_vers.activerecord_files[key]
       unless old_file
         if file.prev_class_name.nil?
           # Add table: missing old file, don't have prev_class_name
-          if block_given?
-            yield :tab_add, key
-          else
-            puts "new table #{key}: #{file.filename}@#{@commit}"
-          end
-          tab_add += 1
+          yield :tab_add, key
         else
           # Rename table: has prev_class_name
-          if block_given?
-            yield :tab_ren, key, file.prev_class_name
-          else
-            puts "rename table #{file.prev_class_name} → #{key}: #{file.filename}@#{@commit}"
-          end
-          tab_ren += 1
-          renamed_tab.push(file.prev_class_name)
+          yield :tab_ren, key, file.prev_class_name
+          renamed_tab << file.prev_class_name
         end
         next
       end
 
       # Add column: present in new file but missing in old file
       file.columns.each_key.reject { |k| old_file.columns.keys.include? k }.each do |col|
-        if block_given?
-          yield :col_add, key, col
-        else
-          puts "new column #{col} in table #{key}: #{file.filename}@#{@commit}"
-        end
-        col_add += 1
+        yield :col_add, key, col
       end
 
       old_file.columns.each_key do |col|
@@ -61,25 +49,18 @@ class Version_class
         #    (TracksApp/tracks@v1.6..v1.7, seven1m/onebody@3.6.0..3.7.0, etc.)
         # 2. the first occurrence of true of is_deleted marks a deletion
         if new_col.nil? || new_col.is_deleted && !old_col.is_deleted
-          if block_given?
-            yield :col_del, key, old_name, new_col.nil?
-          else
-            puts "del column #{old_name} in table #{key}: #{file.filename}@#{@commit}"
-          end
-          col_del += 1
+          yield :col_del, key, old_name, new_col.nil?
           next
         end
 
         # Rename column
         new_name = new_col.column_name
-        if old_name != new_name
-          if block_given?
-            yield :col_ren, key, new_name, old_name
-          else
-            puts "rename column #{old_name} → #{new_name} in table #{key}: #{file.filename}@#{@commit}"
-          end
-          col_ren += 1
-        end
+        yield :col_ren, key, new_name, old_name if old_name != new_name
+
+        # Change column type
+        old_type = old_col.column_type
+        new_type = new_col.column_type
+        yield :col_type, key, new_name, new_type, old_type if old_type != new_type
       end
     end
 
@@ -88,14 +69,8 @@ class Version_class
       @activerecord_files[k] || renamed_tab.include?(k)
     end
     dtab.each do |key|
-      if block_given?
-        yield :tab_del, key
-      else
-        puts "del table #{key}: #{@commit}"
-      end
-      tab_del += 1
+      yield :tab_del, key
     end
-    [col_add, col_del, col_ren, tab_add, tab_del, tab_ren]
   end
 end
 
@@ -121,15 +96,16 @@ end
 # total number in all versions to a CSV file specified by `path`.
 def output_csv_schema_change(path, version_chg, total_action)
   CSV.open(path, "wb") do |csv|
-    csv << ["version", "column add", "column delete", "column rename",
+    csv << ["version", "column add", "column delete", "column rename", "column change type",
             "table add", "table delete", "table rename"]
     version_chg.each do |ver, chg|
       ver = ver.start_with?("refs/tags/") ? ver.sub("refs/tags/", "") : ver[..7]
-      csv << [ver, chg[:col_add], chg[:col_del], chg[:col_ren],
+      csv << [ver, chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
               chg[:tab_add], chg[:tab_del], chg[:tab_ren]]
     end
     csv << ["TOTAL", total_action[:col_add], total_action[:col_del], total_action[:col_ren],
-            total_action[:tab_add], total_action[:tab_del], total_action[:tab_ren]]
+            total_action[:col_type], total_action[:tab_add], total_action[:tab_del],
+            total_action[:tab_ren]]
   end
 end
 
@@ -153,13 +129,13 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
 
   versions.each { |v| build_version(version_his_folder, v) }
   versions = Parallel.map(versions) { |v| load_version(version_his_folder, v) }
-  version_with = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
+  version_with = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   version_chg = []
-  total_action = { col_add: 0, col_del: 0, col_ren: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
+  total_action = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
     this_version_has = Hash.new 0
-    newv.compare_db_schema(curv) do |action, *args|
+    newv.compare_db_schema(curv) do |action, table, *args|
       this_version_has[action] += 1
     end
     version_chg << [newv.commit, this_version_has]
