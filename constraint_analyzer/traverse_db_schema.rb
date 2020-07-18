@@ -102,21 +102,19 @@ end
 # Builds a `Version_class` and save it to cache
 def build_version(yaml_root, version)
   yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
-  unless File.exist? yaml_dump
-    version.build
-    version.clean
-    File.open(yaml_dump, "w") { |f| f.write(Psych.dump(version)) }
-  end
+  return if File.exist? yaml_dump
+
+  version.build
+  version.clean
+  File.open(yaml_dump, "w") { |f| f.write(Psych.dump(version)) }
 end
 
 # Loads a vendored `Version_class` from cache
 def load_version(yaml_root, version)
   yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
-  if File.exist? yaml_dump
-    Psych.load_file(yaml_dump)
-  else
-    raise "#{yaml_dump} does not exist"
-  end
+  raise "#{yaml_dump} does not exist" unless File.exist? yaml_dump
+
+  Psych.load_file(yaml_dump)
 end
 
 # Prints the number of different types of changes in every version and the
