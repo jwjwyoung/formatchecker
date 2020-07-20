@@ -13,9 +13,9 @@ class Version_class
   #
   #      * `:tab_add`, `:tab_del`: no more arguments
   #      * `:tab_ren`: the previous table name
-  #      * `:col_add`, `:col_del`: the added/deleted column name
-  #      * `:col_ren`: the new name and the previous name
-  #      * `:col_type`: the column name, new type and old type
+  #      * `:col_add`, `:col_del`: column key name and the added/deleted column's name
+  #      * `:col_ren`: column key name, the new name and the previous name
+  #      * `:col_type`: column key name, the column name, new type and old type
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -37,7 +37,7 @@ class Version_class
 
       # Add column: present in new file but missing in old file
       file.columns.each_key.reject { |k| old_file.columns.keys.include? k }.each do |col|
-        yield :col_add, key, col
+        yield :col_add, key, col, file.columns[col].column_name
       end
 
       old_file.columns.each_key do |col|
@@ -49,18 +49,18 @@ class Version_class
         #    (TracksApp/tracks@v1.6..v1.7, seven1m/onebody@3.6.0..3.7.0, etc.)
         # 2. the first occurrence of true of is_deleted marks a deletion
         if new_col.nil? || new_col.is_deleted && !old_col.is_deleted
-          yield :col_del, key, old_name, new_col.nil?
+          yield :col_del, key, col, old_name, new_col.nil?
           next
         end
 
         # Rename column
         new_name = new_col.column_name
-        yield :col_ren, key, new_name, old_name if old_name != new_name
+        yield :col_ren, key, col, new_name, old_name if old_name != new_name
 
         # Change column type
         old_type = old_col.column_type
         new_type = new_col.column_type
-        yield :col_type, key, new_name, new_type, old_type if old_type != new_type
+        yield :col_type, key, col, new_name, new_type, old_type if old_type != new_type
       end
     end
 
