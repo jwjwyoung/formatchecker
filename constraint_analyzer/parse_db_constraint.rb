@@ -158,7 +158,19 @@ def handle_create_table(ast)
         $dangling_classes[class_name] = table_class
       end
       dic = extract_hash_from_list(column_ast.children[-1])
-      if column_type == "index"
+      if column_type == "remove"
+        column_name = handle_symbol_literal_node(c[3][0]) || handle_string_literal_node(c[3][0])
+        table_class.columns[column_name].is_deleted = true
+        # TODO: constraint related work
+      elsif column_type == "rename"
+        old_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
+        new_name = handle_symbol_literal_node(column_ast[1]) || handle_string_literal_node(column_ast[1])
+        column = table_class.columns[old_name].clone
+        column.column_name = new_name
+        column.prev_column = table_class.columns[old_name]
+        table_class.addColumn(column)
+        # TODO: constraint related work
+      elsif column_type == "index"
         columns = []
         if column_ast[0].type.to_s == "symbol_literal"
           columns = [handle_symbol_literal_node(column_ast[0])]
