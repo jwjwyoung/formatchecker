@@ -94,6 +94,11 @@ end
 
 # Prints the number of different types of changes in every version and the
 # total number in all versions to a CSV file specified by `path`.
+#
+# ==== Examples
+#
+#  output_csv_schema_change(File.expand_path("../tmp/#{app_name}.csv", __dir__),
+#                           version_chg, total_action)
 def output_csv_schema_change(path, version_chg, total_action)
   CSV.open(path, "wb") do |csv|
     csv << ["version", "column add", "column delete", "column rename", "column change type",
@@ -129,8 +134,11 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
 
   versions.each { |v| build_version(version_his_folder, v) }
   versions = Parallel.map(versions) { |v| load_version(version_his_folder, v) }
+  # number of versions that include an action
   version_with = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
+  # version and it's change counts
   version_chg = []
+  # total number of actions
   total_action = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
@@ -145,10 +153,7 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
     end
   end
   ver_with_change = 0
-  version_chg.each do |ver, chg|
-    puts "#{ver} #{chg}"
+  version_chg.each do |_ver, chg|
     ver_with_change += 1 unless chg.values.all?(&:zero?)
   end
-  p version_with
-  puts "#{ver_with_change} / #{versions.length - 1}"
 end
