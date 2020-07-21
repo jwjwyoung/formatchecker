@@ -55,12 +55,13 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   # reset to the most up to date commit
   `git -C '#{directory}' checkout -fq master`
 
-  tags = `git -C '#{directory}' for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
-  app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
-                       "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26", "onebody" => "39",
-                       "diaspora" => "86", "falling-fruit" => "12", "openstreetmap-website" => "95" }
-  app_name = directory.split("/")[-1]
-  version_size = app_version_size[app_name].to_i
+  tags = `git -C '#{directory}' for-each-ref --sort=creatordate --format '%(refname)' refs/tags`
+  # app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
+  #                      "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26",
+  #                      "onebody" => "39", "diaspora" => "86", "falling-fruit" => "12",
+  #                      "openstreetmap-website" => "95" }
+  # app_name = directory.split("/")[-1]
+  # version_size = app_version_size[app_name].to_i
   commits = tags.lines.reverse.map(&:strip) if tag_unit
   if !commits || commits.length < 10
     commits = `git -C '#{directory}' log --format=format:%H`.lines
@@ -86,8 +87,8 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   end
   # For applications not in `app_version_size.keys`, it's `version_size` is zero,
   # so don't chop the versions here.
-  versions = versions.reverse[0...version_size].reverse unless version_size.zero?
-  versions
+  # versions = versions.reverse[0...version_size].reverse unless version_size.zero?
+  versions[..300]
 end
 
 def get_tags_before_certain_date(commit, directory)
