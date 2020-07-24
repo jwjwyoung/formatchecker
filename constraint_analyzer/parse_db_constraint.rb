@@ -187,6 +187,10 @@ def handle_create_table(ast)
         table_class.addIndex(new_index)
         # puts "ADD INDEX: #{new_index.table_name} #{new_index.name} #{new_index.columns} #{new_index.unique}"
       else
+        # fix t.change :name, :type
+        if column_type == "change"
+          column_type = handle_symbol_literal_node(c[3][1])
+        end
         column_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
         column = Column.new(table_class, column_name, column_type, $cur_class)
         columns = table_class.getColumns
