@@ -38,7 +38,8 @@ def read_constraint_files(application_dir = nil, version = "")
     next if filename.include? "vendor/bundle/"
 
     if filename.include?("app/models/")
-      model_files << filename
+      # filter out garbage in diaspora/app/assets
+      model_files << filename if filename.ends_with? ".rb"
     end
     if filename.include?("db/migrate/")
       migration_files << filename
