@@ -99,31 +99,6 @@ def load_version(yaml_root, version)
   Psych.load_file(yaml_dump)
 end
 
-def shorten_commit(commit)
-  commit.start_with?("refs/tags/") ? commit.sub("refs/tags/", "") : commit[..7]
-end
-
-# Prints the number of different types of changes in every version and the
-# total number in all versions to a CSV file specified by `path`.
-#
-# ==== Examples
-#
-#  output_csv_schema_change(File.expand_path("../tmp/#{app_name}.csv", __dir__),
-#                           version_chg, total_action)
-def output_csv_schema_change(path, version_chg, total_action)
-  CSV.open(path, "wb") do |csv|
-    csv << ["version", "column add", "column delete", "column rename", "column change type",
-            "table add", "table delete", "table rename"]
-    version_chg.each do |ver, chg|
-      csv << [shorten_commit(ver), chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
-              chg[:tab_add], chg[:tab_del], chg[:tab_ren]]
-    end
-    csv << ["TOTAL", total_action[:col_add], total_action[:col_del], total_action[:col_ren],
-            total_action[:col_type], total_action[:tab_add], total_action[:tab_del],
-            total_action[:tab_ren]]
-  end
-end
-
 # Gets the versions for `app_dir`. If the file "#{app_dir}/versions" exists, every line
 # in the file is treated as a version. Otherwise use the original `extract_commits`.
 def get_versions(app_dir, interval)
@@ -162,8 +137,64 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
       total_action[ac] += num
     end
   end
-  ver_with_change = 0
-  version_chg.each do |_ver, chg|
-    ver_with_change += 1 unless chg.values.all?(&:zero?)
+end
+
+# Finds how many columns are changed once/twice/more
+#
+# ==== Examples
+#
+#  puts freq_change_column(column_changes).join "/"
+def freq_change_column(column_changes)
+  once = twice = more = 0
+  column_changes.each do |tab, val|
+    val.each do |col, count|
+      if count > 2
+        more += 1
+      elsif count == 2
+        twice += 1
+      else
+        once += 1
+      end
+      # puts "#{count} #{tab}.#{col}"
+    end
   end
+  [once, twice, more]
+end
+
+# Finds how many versions have changed schema
+#
+# ==== Examples
+#
+#  puts version_with_change(version_chg)
+def version_with_change(version_chg)
+  count = 0
+  version_chg.each do |_ver, chg|
+    count += 1 unless chg.values.all?(&:zero?)
+  end
+  count
+end
+
+# Prints the number of different types of changes in every version and the
+# total number in all versions to a CSV file specified by `path`.
+#
+# ==== Examples
+#
+#  output_csv_schema_change(File.expand_path("../tmp/#{app_name}.csv", __dir__),
+#                           version_chg, total_action)
+def output_csv_schema_change(path, version_chg, total_action)
+  CSV.open(path, "wb") do |csv|
+    csv << ["version", "column add", "column delete", "column rename", "column change type",
+            "table add", "table delete", "table rename"]
+    version_chg.each do |ver, chg|
+      csv << [shorten_commit(ver), chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
+              chg[:tab_add], chg[:tab_del], chg[:tab_ren]]
+    end
+    csv << ["TOTAL", total_action[:col_add], total_action[:col_del], total_action[:col_ren],
+            total_action[:col_type], total_action[:tab_add], total_action[:tab_del],
+            total_action[:tab_ren]]
+  end
+end
+
+def shorten_commit(commit)
+  commit.start_with?("refs/tags/") ? commit.sub("refs/tags/", "") : commit[..7]
 end
