@@ -35,9 +35,11 @@ class Version_class
         next
       end
 
-      # Add column: present in new file but missing in old file
-      file.columns.each_key.reject { |k| old_file.columns.keys.include? k }.each do |col|
-        yield :col_add, key, col, file.columns[col].column_name
+      file.columns.each do |ckey, col|
+        # Add column: not deleted in new file but (missing in old file or deleted in old file)
+        if old_file.columns[ckey].nil? || (old_file.columns[ckey].is_deleted && !col.is_deleted)
+          yield :col_add, key, ckey, col.column_name
+        end
       end
 
       old_file.columns.each_key do |col|
