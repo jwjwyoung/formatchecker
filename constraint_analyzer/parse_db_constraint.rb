@@ -23,10 +23,9 @@ def parse_db_constraint_file(ast)
   when :fcall
     if ast[0].source == "reversible"
       handle_reversible(ast)
-    else
-      funcname = ast[0].source
-      parse_db_constraint_function(nil, funcname, ast)
     end
+    funcname = ast[0].source
+    parse_db_constraint_function(nil, funcname, ast)
   when :command
     funcname = ast[0].source
     parse_db_constraint_function(nil, funcname, ast)
