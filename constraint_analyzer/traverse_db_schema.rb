@@ -61,7 +61,12 @@ class Version_class
         # Change column type
         old_type = old_col.column_type
         new_type = new_col.column_type
-        yield :col_type, key, col, new_name, new_type, old_type if old_type != new_type
+        if old_type != new_type &&
+           !old_type.start_with?(new_type) &&
+           !new_type.start_with?(old_type) &&
+           Set.new([old_type, new_type]) != Set.new(%w[double float])
+          yield :col_type, key, col, new_name, new_type, old_type
+        end
       end
     end
 
