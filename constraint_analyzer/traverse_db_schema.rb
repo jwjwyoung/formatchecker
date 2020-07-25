@@ -93,6 +93,10 @@ def load_version(yaml_root, version)
   Psych.load_file(yaml_dump)
 end
 
+def shorten_commit(commit)
+  commit.start_with?("refs/tags/") ? commit.sub("refs/tags/", "") : commit[..7]
+end
+
 # Prints the number of different types of changes in every version and the
 # total number in all versions to a CSV file specified by `path`.
 #
@@ -105,8 +109,7 @@ def output_csv_schema_change(path, version_chg, total_action)
     csv << ["version", "column add", "column delete", "column rename", "column change type",
             "table add", "table delete", "table rename"]
     version_chg.each do |ver, chg|
-      ver = ver.start_with?("refs/tags/") ? ver.sub("refs/tags/", "") : ver[..7]
-      csv << [ver, chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
+      csv << [shorten_commit(ver), chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
               chg[:tab_add], chg[:tab_del], chg[:tab_ren]]
     end
     csv << ["TOTAL", total_action[:col_add], total_action[:col_del], total_action[:col_ren],
