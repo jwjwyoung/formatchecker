@@ -118,7 +118,7 @@ def handle_change_column(ast, is_deleted = false)
     column = Column.new(table_class, column_name, column_type, $cur_class, dic)
     column.is_deleted = is_deleted
     columns = table_class.getColumns
-    column.prev_column = columns[column_name]
+    # column.prev_column = columns[column_name]
     table_class.addColumn(column)
     constraint_delete_keys = table_class.getConstraints.select do |k, _v|
       k.include? "#{class_name}-#{column_name}-#{Presence_constraint}-#{Constraint::DB}" or
@@ -165,9 +165,9 @@ def handle_create_table(ast)
       elsif column_type == "rename"
         old_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
         new_name = handle_symbol_literal_node(column_ast[1]) || handle_string_literal_node(column_ast[1])
-        column = table_class.columns[old_name].clone
+        column = table_class.columns[old_name]
+        column.prev_column = table_class.columns[old_name].clone
         column.column_name = new_name
-        column.prev_column = table_class.columns[old_name]
         table_class.addColumn(column)
         # TODO: constraint related work
       elsif column_type == "index"
@@ -193,8 +193,8 @@ def handle_create_table(ast)
         end
         column_name = handle_symbol_literal_node(column_ast[0]) || handle_string_literal_node(column_ast[0])
         column = Column.new(table_class, column_name, column_type, $cur_class)
-        columns = table_class.getColumns
-        column.prev_column = columns[column_name]
+        # columns = table_class.getColumns
+        # column.prev_column = columns[column_name]
         table_class.addColumn(column)
         column.parse(dic)
         constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
@@ -280,7 +280,7 @@ def handle_reversible(ast)
       next unless column_name && table_class && column_name
 
       column = Column.new(table_class, column_name, column_type, $cur_class)
-      column.prev_column = old_column
+      # column.prev_column = old_column
       table_class.addColumn(column)
       constraints = create_constraints(class_name, column_name, column_type, Constraint::DB, dic)
       table_class.addConstraints(constraints)
@@ -449,6 +449,7 @@ def handle_rename_column(ast)
   table_class ||= $dangling_classes[class_name]
   if table_class
     column = table_class.getColumns[old_column_name]
+    column.prev_column = table_class.getColumns[old_column_name].clone
     column.column_name = new_column_name
     constraints = table_class.getConstraints
     new_constraints = []
