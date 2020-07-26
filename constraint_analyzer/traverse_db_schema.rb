@@ -2,12 +2,14 @@ require "csv"
 require "parallel"
 
 class Version_class
-  # Gets information about {table,column}{add,delete,rename} and column type change
-  # between `self` and `old_vers`. Provide a block to this method to go through the
-  # differences. The arguments of the block should be in the following order.
+  # Gets information about {table,column}{add,delete,rename}, column type change and
+  # foreign key {add,delete} between `self` and `old_vers`. Provide a block to this
+  # method to go through the differences. The arguments of the block should be in
+  # the following order.
   #
-  # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren, :col_add, :col_del,
-  #      :col_ren, :col_type];
+  # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren,
+  #      :col_add, :col_del, :col_ren, :col_type,
+  #      :fk_add, :fk_del];
   # 2. the table involved in the change. For table rename, this is the new name;
   # 3. other arguments:
   #
@@ -16,6 +18,7 @@ class Version_class
   #      * `:col_add`, `:col_del`: column key name and the added/deleted column's name
   #      * `:col_ren`: column key name, the new name and the previous name
   #      * `:col_type`: column key name, the column name, new type and old type
+  #      * `:fk_add`, `:fk_del`: a `Set` of added/deleted keys
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -33,6 +36,18 @@ class Version_class
           renamed_tab << file.prev_class_name
         end
         next
+      end
+
+      # Foreign key add/del
+      fk = Set.new(file.foreign_keys)
+      old_fk = Set.new(old_file.foreign_keys)
+      add_fk = fk - old_fk
+      unless add_fk.empty?
+        yield :fk_add, key, add_fk
+      end
+      del_fk = old_fk - fk
+      unless del_fk.empty?
+        yield :fk_del, key, del_fk
       end
 
       file.columns.each do |ckey, col|
@@ -125,12 +140,14 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
 
   versions.each { |v| build_version(version_his_folder, v) }
   versions = Parallel.map(versions) { |v| load_version(version_his_folder, v) }
-  # number of versions that include an action
-  version_with = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
   # version and it's change counts
   version_chg = []
+  # number of versions that include an action
+  version_with = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0,
+                   tab_add: 0, tab_del: 0, tab_ren: 0,
+                   fk_add: 0, fk_del: 0 }
   # total number of actions
-  total_action = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0, tab_add: 0, tab_del: 0, tab_ren: 0 }
+  total_action = version_with.clone
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
     this_version_has = Hash.new 0
@@ -190,14 +207,14 @@ end
 def output_csv_schema_change(path, version_chg, total_action)
   CSV.open(path, "wb") do |csv|
     csv << ["version", "column add", "column delete", "column rename", "column change type",
-            "table add", "table delete", "table rename"]
+            "table add", "table delete", "table rename", "foreign key add", "foreign key del"]
     version_chg.each do |ver, chg|
       csv << [shorten_commit(ver), chg[:col_add], chg[:col_del], chg[:col_ren], chg[:col_type],
-              chg[:tab_add], chg[:tab_del], chg[:tab_ren]]
+              chg[:tab_add], chg[:tab_del], chg[:tab_ren], chg[:fk_add], chg[:fk_del]]
     end
     csv << ["TOTAL", total_action[:col_add], total_action[:col_del], total_action[:col_ren],
             total_action[:col_type], total_action[:tab_add], total_action[:tab_del],
-            total_action[:tab_ren]]
+            total_action[:tab_ren], total_action[:fk_add], total_action[:fk_del]]
   end
 end
 
