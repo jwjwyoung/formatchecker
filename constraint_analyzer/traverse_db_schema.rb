@@ -40,6 +40,16 @@ class Version_class
         if old_file.columns[ckey].nil? || (old_file.columns[ckey].is_deleted && !col.is_deleted)
           yield :col_add, key, ckey, col.column_name
         end
+
+        # Rename column
+        if col.prev_column
+          new_name = col.column_name
+          prev_name = col.prev_column.column_name
+          old_prev_name = old_file.columns[ckey]&.prev_column&.column_name
+          if prev_name != new_name && (old_prev_name.nil? || old_prev_name != prev_name)
+            yield :col_ren, key, ckey, new_name, prev_name
+          end
+        end
       end
 
       old_file.columns.each_key do |col|
@@ -55,10 +65,6 @@ class Version_class
           next
         end
 
-        # Rename column
-        new_name = new_col.column_name
-        yield :col_ren, key, col, new_name, old_name if old_name != new_name
-
         # Change column type
         old_type = old_col.column_type
         new_type = new_col.column_type
@@ -66,7 +72,7 @@ class Version_class
            !old_type.start_with?(new_type) &&
            !new_type.start_with?(old_type) &&
            Set.new([old_type, new_type]) != Set.new(%w[double float])
-          yield :col_type, key, col, new_name, new_type, old_type
+          yield :col_type, key, col, new_col.column_name, new_type, old_type
         end
       end
     end
