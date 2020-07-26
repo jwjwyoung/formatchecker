@@ -188,7 +188,7 @@ end
 #
 # ==== Examples
 #
-#  puts version_with_change(version_chg)
+#  puts "#{version_with_change(version_chg)}/#{version_chg.length}"
 def version_with_change(version_chg)
   count = 0
   version_chg.each do |_ver, chg|
