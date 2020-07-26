@@ -55,7 +55,7 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   # reset to the most up to date commit
   `git -C '#{directory}' checkout -fq master`
 
-  tags = `git -C '#{directory}' for-each-ref --sort=creatordate --format '%(refname)' refs/tags`
+  tags = `git -C '#{directory}' for-each-ref --format '%(refname)' refs/tags | ./sort-versions.py`
   # app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
   #                      "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26",
   #                      "onebody" => "39", "diaspora" => "86", "falling-fruit" => "12",
@@ -72,12 +72,7 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   end
   versions = []
   i = 0
-  # exclude release candidates, beta versions and alike
-  good_commits = commits.reject do |c|
-    d = c.downcase
-    d.include?("rc") || d.include?("pre") || d.include?("beta")
-  end
-  good_commits.each do |commit|
+  commits.each do |commit|
     if i % interval == 0
       version = Version_class.new(directory, commit)
       # version.build
