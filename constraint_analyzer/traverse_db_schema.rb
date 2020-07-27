@@ -148,10 +148,17 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
                    fk_add: 0, fk_del: 0 }
   # total number of actions
   total_action = version_with.clone
+  # change in columns: column_changes[table_name][column_name] = count
+  column_changes = Hash.new { |hash, k| hash[k] = Hash.new 0 }
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
     this_version_has = Hash.new 0
     newv.compare_db_schema(curv) do |action, table, *args|
+      case action
+      when :col_ren, :col_del, :col_type, :col_add
+        col = args[0]
+        column_changes[table][col] += 1 unless action == :col_add
+      end
       this_version_has[action] += 1
     end
     version_chg << [newv.commit, this_version_has]
