@@ -67,6 +67,7 @@ class Version_class
         end
       end
 
+      newfile_columns = file.columns.values.reject(&:is_deleted).map(&:column_name).to_set
       old_file.columns.each_key do |col|
         old_col = old_file.columns[col]
         old_name = old_col.column_name
@@ -76,7 +77,9 @@ class Version_class
         #    (TracksApp/tracks@v1.6..v1.7, seven1m/onebody@3.6.0..3.7.0, etc.)
         # 2. the first occurrence of true of is_deleted marks a deletion
         if new_col.nil? || new_col.is_deleted
-          yield :col_del, key, col, old_name, new_col.nil? unless old_col.is_deleted
+          if !old_col.is_deleted && !newfile_columns.include?(old_name)
+            yield :col_del, key, col, old_name, new_col.nil?
+          end
           next
         end
 
