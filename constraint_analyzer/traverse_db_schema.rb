@@ -18,7 +18,7 @@ class Version_class
   #      * `:col_add`, `:col_del`: column key name and the added/deleted column's name
   #      * `:col_ren`: column key name, the new name and the previous name
   #      * `:col_type`: column key name, the column name, new type and old type
-  #      * `:fk_add`, `:fk_del`: a `Set` of added/deleted keys
+  #      * `:fk_add`, `:fk_del`: the added/deleted key
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -39,15 +39,13 @@ class Version_class
       end
 
       # Foreign key add/del
-      fk = Set.new(file.foreign_keys)
+      new_fk = Set.new(file.foreign_keys)
       old_fk = Set.new(old_file.foreign_keys)
-      add_fk = fk - old_fk
-      unless add_fk.empty?
-        yield :fk_add, key, add_fk
+      (new_fk - old_fk).each do |fk|
+        yield :fk_add, key, fk
       end
-      del_fk = old_fk - fk
-      unless del_fk.empty?
-        yield :fk_del, key, del_fk
+      (old_fk - new_fk).each do |fk|
+        yield :fk_del, key, fk
       end
 
       file.columns.each do |ckey, col|
