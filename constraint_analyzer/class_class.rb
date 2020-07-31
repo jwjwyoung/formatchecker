@@ -1,6 +1,7 @@
 class File_class
   attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices,
-                :contents, :functions, :has_many_classes, :prev_class_name, :foreign_keys
+                :contents, :functions, :has_many_classes, :prev_class_name, :foreign_keys,
+                :has_one_classes
   attr_reader :columns
 
   def initialize(filename)
@@ -18,6 +19,7 @@ class File_class
     @contents = ""
     @functions = {}
     @has_many_classes = {}
+    @has_one_classes = {}
     @prev_class_name = nil
   end
 

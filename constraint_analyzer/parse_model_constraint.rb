@@ -48,7 +48,7 @@ def parse_model_constraint_file(ast)
         $cur_class.addForeignKey(key_field)
       end
     end
-    if funcname == "has_many" || funcname == "belongs_to" 
+    if %w[has_many has_one belongs_to].include? funcname
       columns = []
       dic = {}
       ast[1].children.each do |child|
@@ -68,13 +68,17 @@ def parse_model_constraint_file(ast)
           end
         end
       end
-      if funcname == "has_many"
+      case funcname
+      when "has_many"
         columns.each do |column|
           # puts "#{column} #{dic}"
           $cur_class.addHasMany(column, dic)
         end
-      end
-      if funcname == "belongs_to"
+      when "has_one"
+        columns.each do |column|
+          $cur_class.has_one_classes[column] = dic["dependent"] ? true : false
+        end
+      when "belongs_to"
         cs = []
         columns.each do |column|
           unless dic["optional"]&.source == "true"
