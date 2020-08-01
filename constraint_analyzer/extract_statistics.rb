@@ -56,6 +56,10 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   `git -C '#{directory}' checkout -fq master`
 
   tags = `git -C '#{directory}' for-each-ref --format '%(refname)' refs/tags | ./sort-versions.py`
+  unless $CHILD_STATUS.success?
+    raise "command for getting tags failed"
+  end
+
   # app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
   #                      "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26",
   #                      "onebody" => "39", "diaspora" => "86", "falling-fruit" => "12",
