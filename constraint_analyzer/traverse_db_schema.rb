@@ -1,15 +1,22 @@
 require "csv"
 require "parallel"
 
+def aggregate_many_one(has_manys, has_ones)
+  tmp = has_manys.each_with_object({}) { |obj, memo| memo[obj] = :many }
+  has_ones.each_with_object(tmp) { |obj, memo| memo[obj] = :one }
+end
+
 class Version_class
-  # Gets information about {table,column}{add,delete,rename}, column type change and
-  # foreign key {add,delete} between `self` and `old_vers`. Provide a block to this
-  # method to go through the differences. The arguments of the block should be in
-  # the following order.
+  # Gets information about {table,column}{add,delete,rename}, column type change,
+  # foreign key {add,delete}, {has_one,has_many}{add,delete} and has_one <-> has_many
+  # change between `self` and `old_vers`. Provide a block to this method to go
+  # through the differences. The arguments of the block should be in the following
+  # order.
   #
   # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren,
-  #      :col_add, :col_del, :col_ren, :col_type,
-  #      :fk_add, :fk_del];
+  #      :col_add, :col_del, :col_ren, :col_type, :fk_add, :fk_del
+  #      :has_one_add, :has_one_del, :has_many_add, :has_many_del,
+  #      :one_to_many, :many_to_one];
   # 2. the table involved in the change. For table rename, this is the new name;
   # 3. other arguments:
   #
@@ -19,6 +26,7 @@ class Version_class
   #      * `:col_ren`: column key name, the new name and the previous name
   #      * `:col_type`: column key name, the column name, new type and old type
   #      * `:fk_add`, `:fk_del`: the added/deleted key
+  #      * :has_{one,many}_{add,del}, `:one_to_many`, `:many_to_one`: the model
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -46,6 +54,37 @@ class Version_class
       end
       (old_fk - new_fk).each do |fk|
         yield :fk_del, key, fk
+      end
+
+      # Has many add/del
+      new_many = file.has_many_classes.keys.to_set
+      old_many = old_file.has_many_classes.keys.to_set
+      (new_many - old_many).each do |k|
+        yield :has_many_add, key, k
+      end
+      (old_many - new_many).each do |k|
+        yield :has_many_del, key, k
+      end
+
+      # Has one add/del
+      new_one = file.has_one_classes.keys.to_set
+      old_one = old_file.has_one_classes.keys.to_set
+      (new_one - old_one).each do |k|
+        yield :has_one_add, key, k
+      end
+      (old_one - new_one).each do |k|
+        yield :has_one_del, key, k
+      end
+
+      # Has many <-> Has one
+      new_has = aggregate_many_one(new_many, new_one)
+      old_has = aggregate_many_one(old_many, old_one)
+      (new_one + new_many).intersection(old_one + old_many).each do |k|
+        if old_has[k] == :many && new_has[k] == :one
+          yield :many_to_one, key, k
+        elsif old_has[k] == :one && new_has[k] == :many
+          yield :one_to_many, key, k
+        end
       end
 
       file.columns.each do |ckey, col|
@@ -144,9 +183,10 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   # version and it's change counts
   version_chg = []
   # number of versions that include an action
-  version_with = { col_add: 0, col_del: 0, col_ren: 0, col_type: 0,
-                   tab_add: 0, tab_del: 0, tab_ren: 0,
-                   fk_add: 0, fk_del: 0 }
+  version_with = %i[
+    col_add col_del col_ren col_type tab_add tab_del tab_ren fk_add fk_del
+    has_many_add has_many_del has_one_add has_one_del many_to_one one_to_many
+  ].each_with_object({}) { |obj, memo| memo[obj] = 0 }
   # total number of actions
   total_action = version_with.clone
   # change in columns: column_changes[table_name][column_name] = count
