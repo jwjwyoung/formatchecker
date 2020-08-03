@@ -217,8 +217,8 @@ end
 #  puts freq_change_column(column_changes).join "/"
 def freq_change_column(column_changes)
   once = twice = more = 0
-  column_changes.each do |tab, val|
-    val.each do |col, count|
+  column_changes.each do |_tab, val|
+    val.each do |_col, count|
       if count > 2
         more += 1
       elsif count == 2
@@ -226,7 +226,7 @@ def freq_change_column(column_changes)
       else
         once += 1
       end
-      # puts "#{count} #{tab}.#{col}"
+      # puts "#{count} #{_tab}.#{_col}"
     end
   end
   [once, twice, more]
