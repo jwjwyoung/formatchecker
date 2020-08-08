@@ -24,6 +24,9 @@ Naming:
 Naming/MethodParameterName:
   Enabled: false
 
+Style/AsciiComments:
+  Enabled: false
+
 Style/FrozenStringLiteralComment:
   EnforcedStyle: never
 
