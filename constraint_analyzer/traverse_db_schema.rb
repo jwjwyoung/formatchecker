@@ -1,22 +1,24 @@
 require "csv"
 require "parallel"
 
-def aggregate_many_one(has_manys, has_ones)
-  tmp = has_manys.each_with_object({}) { |obj, memo| memo[obj] = :many }
-  has_ones.each_with_object(tmp) { |obj, memo| memo[obj] = :one }
+def aggregate_many_one(belongs, has_manys, has_ones, has_belong)
+  tmp = belongs.each_with_object({}) { |obj, memo| memo[obj] = :belongs }
+  tmp = has_manys.each_with_object(tmp) { |obj, memo| memo[obj] = :many }
+  tmp = has_ones.each_with_object(tmp) { |obj, memo| memo[obj] = :one }
+  has_belong.each_with_object(tmp) { |obj, memo| memo[obj] = :has_belong }
 end
 
 class Version_class
   # Gets information about {table,column}{add,delete,rename}, column type change,
-  # foreign key {add,delete}, {has_one,has_many}{add,delete} and has_one <-> has_many
-  # change between `self` and `old_vers`. Provide a block to this method to go
-  # through the differences. The arguments of the block should be in the following
-  # order.
+  # association (belongs_to (fk), has_many, has_one, has_and_belongs_to_many)
+  # {add,delete,change} between `self` and `old_vers`. Provide a block to this
+  # method to go through the differences. The arguments of the block should be
+  # in the following order.
   #
   # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren,
   #      :col_add, :col_del, :col_ren, :col_type, :fk_add, :fk_del
   #      :has_one_add, :has_one_del, :has_many_add, :has_many_del,
-  #      :one_to_many, :many_to_one];
+  #      :has_belong_add, :has_belong_del, :assoc_change];
   # 2. the table involved in the change. For table rename, this is the new name;
   # 3. other arguments:
   #
@@ -26,7 +28,8 @@ class Version_class
   #      * `:col_ren`: column key name, the new name and the previous name
   #      * `:col_type`: column key name, the column name, new type and old type
   #      * `:fk_add`, `:fk_del`: the added/deleted key
-  #      * :has_{one,many}_{add,del}, `:one_to_many`, `:many_to_one`: the model
+  #      * :has_{one,many,belong}_{add,del}: the model
+  #      * `:assoc_change`: the model, new association type, old association type
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -46,44 +49,53 @@ class Version_class
         next
       end
 
-      # Foreign key add/del
-      new_fk = Set.new(file.foreign_keys)
-      old_fk = Set.new(old_file.foreign_keys)
-      (new_fk - old_fk).each do |fk|
-        yield :fk_add, key, fk
-      end
-      (old_fk - new_fk).each do |fk|
-        yield :fk_del, key, fk
-      end
-
-      # Has many add/del
+      # association
+      new_fk = file.foreign_keys.to_set
+      old_fk = old_file.foreign_keys.to_set
       new_many = file.has_many_classes.keys.to_set
       old_many = old_file.has_many_classes.keys.to_set
-      (new_many - old_many).each do |k|
-        yield :has_many_add, key, k
-      end
-      (old_many - new_many).each do |k|
-        yield :has_many_del, key, k
-      end
-
-      # Has one add/del
       new_one = file.has_one_classes.keys.to_set
       old_one = old_file.has_one_classes.keys.to_set
-      (new_one - old_one).each do |k|
-        yield :has_one_add, key, k
-      end
-      (old_one - new_one).each do |k|
-        yield :has_one_del, key, k
+      new_both = file.has_belong_classes
+      old_both = old_file.has_belong_classes
+
+      new_has = aggregate_many_one(new_fk, new_many, new_one, new_both)
+      old_has = aggregate_many_one(old_fk, old_many, old_one, old_both)
+      new_keys = new_fk + new_one + new_many + new_both
+      old_keys = old_fk + old_one + old_many + old_both
+
+      # association change
+      new_keys.intersection(old_keys).each do |k|
+        if old_has[k] != new_has[k]
+          yield :assoc_change, key, k, new_has[k], old_has[k]
+        end
       end
 
-      # Has many <-> Has one
-      new_has = aggregate_many_one(new_many, new_one)
-      old_has = aggregate_many_one(old_many, old_one)
-      (new_one + new_many).intersection(old_one + old_many).each do |k|
-        if old_has[k] == :many && new_has[k] == :one
-          yield :many_to_one, key, k
-        elsif old_has[k] == :one && new_has[k] == :many
-          yield :one_to_many, key, k
+      # association add
+      (new_keys - old_keys).each do |k|
+        case new_has[k]
+        when :belongs
+          yield :fk_add, key, k
+        when :many
+          yield :has_many_add, key, k
+        when :one
+          yield :has_one_add, key, k
+        when :has_belong
+          yield :has_belong_add, key, k
+        end
+      end
+
+      # association delete
+      (old_keys - new_keys).each do |k|
+        case old_has[k]
+        when :belongs
+          yield :fk_del, key, k
+        when :many
+          yield :has_many_del, key, k
+        when :one
+          yield :has_one_del, key, k
+        when :has_belong
+          yield :has_belong_del, key, k
         end
       end
 
@@ -185,7 +197,8 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   # number of versions that include an action
   version_with = %i[
     col_add col_del col_ren col_type tab_add tab_del tab_ren fk_add fk_del
-    has_many_add has_many_del has_one_add has_one_del many_to_one one_to_many
+    has_many_add has_many_del has_one_add has_one_del
+    has_belong_add has_belong_del assoc_change
   ].each_with_object({}) { |obj, memo| memo[obj] = 0 }
   # total number of actions
   total_action = version_with.clone

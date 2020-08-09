@@ -48,7 +48,7 @@ def parse_model_constraint_file(ast)
         $cur_class.addForeignKey(key_field)
       end
     end
-    if %w[has_many has_one belongs_to].include? funcname
+    if %w[has_many has_one belongs_to has_and_belongs_to_many].include? funcname
       columns = []
       dic = {}
       ast[1].children.each do |child|
@@ -72,11 +72,15 @@ def parse_model_constraint_file(ast)
       when "has_many"
         columns.each do |column|
           # puts "#{column} #{dic}"
-          $cur_class.addHasMany(column, dic)
+          $cur_class.addHasMany(column.singularize, dic)
         end
       when "has_one"
         columns.each do |column|
           $cur_class.has_one_classes[column] = dic["dependent"] ? true : false
+        end
+      when "has_and_belongs_to_many"
+        columns.each do |column|
+          $cur_class.has_belong_classes << column.singularize
         end
       when "belongs_to"
         cs = []
