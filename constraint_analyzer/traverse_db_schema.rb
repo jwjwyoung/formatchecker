@@ -99,6 +99,16 @@ class Version_class
         end
       end
 
+      # Index add/del
+      idx = file.indices.keys.to_set
+      old_idx = old_file.indices.keys.to_set
+      (idx - old_idx).each do |i|
+        yield :idx_add, key, i
+      end
+      (old_idx - idx).each do |i|
+        yield :idx_del, key, i
+      end
+
       file.columns.each do |ckey, col|
         # Add column: not deleted in new file but (missing in old file or deleted in old file)
         if old_file.columns[ckey].nil? || (old_file.columns[ckey].is_deleted && !col.is_deleted)
@@ -199,6 +209,7 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
     col_add col_del col_ren col_type tab_add tab_del tab_ren fk_add fk_del
     has_many_add has_many_del has_one_add has_one_del
     has_belong_add has_belong_del assoc_change
+    idx_add idx_del
   ].each_with_object({}) { |obj, memo| memo[obj] = 0 }
   # total number of actions
   total_action = version_with.clone
