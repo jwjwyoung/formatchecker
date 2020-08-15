@@ -114,7 +114,7 @@ def parse_foreign_key(ast)
   dic = {}
   key_field = ""
   if ast[0].type.to_s == "symbol_literal"
-    key_field = handle_symbol_literal_node(ast[0]) + "_id"
+    key_field = handle_symbol_literal_node(ast[0])
     if ast[1] && (ast[1].type.to_s == "list")
       ast[1].each do |child|
         if child.type.to_s == "assoc"
