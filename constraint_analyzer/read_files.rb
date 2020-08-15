@@ -37,7 +37,7 @@ def read_constraint_files(application_dir = nil, version = "")
   files.each do |filename|
     filename = filename.to_s
     # filter out dependency files
-    next if filename.include? "vendor/bundle/"
+    next if filename.include?("vendor/bundle/") || filename.include?("spec/fixtures")
 
     # filter out garbage in diaspora/app/assets
     if filename.include?("app/models/") && filename.ends_with?(".rb")
