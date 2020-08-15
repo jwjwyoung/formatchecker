@@ -13,6 +13,7 @@ require_relative "./version_class.rb"
 require_relative "./extract_statistics.rb"
 require_relative "./ast_handler.rb"
 require_relative "./traverse_db_schema.rb"
+require_relative "./parse_concerns.rb"
 
 require "optparse"
 require "yard"

@@ -1,11 +1,12 @@
 class Version_class
   attr_accessor :app_dir, :commit, :total_constraints_num, :db_constraints_num, :model_constraints_num,
-                :html_constraints_num, :loc, :activerecord_files, :validation_functions
+                :html_constraints_num, :loc, :activerecord_files, :validation_functions, :concerns
 
   def initialize(app_dir, commit)
     @app_dir = app_dir
     @commit = commit.strip
     @files = {}
+    @concerns = {}
     @activerecord_files = {}
     @total_constraints_num = 0
     @db_constraints_num = 0
@@ -31,7 +32,7 @@ class Version_class
   end
 
   def extract_files
-    @files = read_constraint_files(@app_dir, @commit) if @app_dir && @commit
+    @files, @concerns = read_constraint_files(@app_dir, @commit) if @app_dir && @commit
   end
 
   def extract_constraints
@@ -511,11 +512,13 @@ class Version_class
 
   def clean
     @files = nil
+    @concerns = nil
     @validation_functions = nil
     @activerecord_files.each do |_key, file|
       file.ast = nil
       file.functions = nil
       file.contents = nil
+      file.included_concerns = nil
       file&.getColumns.each do |_name, column|
         column.file_class&.ast = nil
         column.prev_column&.file_class&.ast = nil
@@ -527,12 +530,33 @@ class Version_class
     extract_files
     annotate_model_class
     extract_constraints
+    apply_concerns
     print_columns
     begin
       calculate_loc
     rescue StandardError
     end
     extract_validate_functions
+  end
+
+  def apply_concerns
+    @activerecord_files.each_value do |file|
+      file.included_concerns.each do |con_name|
+        con = @concerns[con_name]
+        next unless con
+
+        file.has_many_classes = con.has_manys.each_with_object(file.has_many_classes) do |obj, memo|
+          # TODO: dic["dependent"]
+          memo[obj] = true
+        end
+        file.has_one_classes = con.has_ones.each_with_object(file.has_one_classes) do |obj, memo|
+          # TODO: dic["dependent"]
+          memo[obj] = true
+        end
+        file.foreign_keys += con.belongs_tos.to_a
+        file.has_belong_classes += con.has_belongs
+      end
+    end
   end
 
   def extract_validate_functions

@@ -30,6 +30,7 @@ def read_constraint_files(application_dir = nil, version = "")
   root, files, dirs = os_walk($app_dir2)
   model_classes = {}
   model_files = []
+  concern_files = []
   migration_files = []
   view_files = []
   controller_files = []
@@ -38,9 +39,13 @@ def read_constraint_files(application_dir = nil, version = "")
     # filter out dependency files
     next if filename.include? "vendor/bundle/"
 
-    if filename.include?("app/models/")
-      # filter out garbage in diaspora/app/assets
-      model_files << filename if filename.ends_with? ".rb"
+    # filter out garbage in diaspora/app/assets
+    if filename.include?("app/models/") && filename.ends_with?(".rb")
+      if filename.include?("app/models/concerns/")
+        concern_files << filename
+      else
+        model_files << filename
+      end
     end
     if filename.include?("db/migrate/")
       migration_files << filename
@@ -90,6 +95,13 @@ def read_constraint_files(application_dir = nil, version = "")
   rescue StandardError => error
     puts error
   end
+  concerns = concern_files.each_with_object({}) do |filename, memo|
+    File.open(filename) do |file|
+      ast = YARD::Parser::Ruby::RubyParser.parse(file.read).root
+      concern = Concern.from_ast(ast)
+      memo[concern.name] = concern
+    end
+  end
   $model_classes = model_classes
   $dangling_classes = {}
   cnt = 0
@@ -115,7 +127,7 @@ def read_constraint_files(application_dir = nil, version = "")
     end
   rescue StandardError
   end
-  model_classes
+  [model_classes, concerns]
 end
 
 def read_html_file_ast(view_files)

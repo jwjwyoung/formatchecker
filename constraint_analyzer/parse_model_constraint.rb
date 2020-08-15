@@ -41,6 +41,9 @@ def parse_model_constraint_file(ast)
       constraints = parse_validate_constraint_function($cur_class.class_name, funcname, ast[1])
       $cur_class.addConstraints(constraints) unless constraints.empty?
     end
+    if funcname == "include"
+      $cur_class.included_concerns << ast[1].source
+    end
     if funcname == "belongs_to"
       key_field = parse_foreign_key(ast[1])
       if key_field
