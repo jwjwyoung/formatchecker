@@ -96,6 +96,7 @@ end.parse!
 
 $read_html = true
 $read_db = true
+$read_constraints = true
 
 abort("Error: you must specify an application directory with the -a/--app option") unless options[:app]
 
@@ -114,6 +115,7 @@ end
 
 if options[:tschema]
   $read_html = false
+  $read_constraints = false
   traverse_all_for_db_schema(application_dir, options[:interval])
 end
 

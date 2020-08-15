@@ -36,7 +36,7 @@ def parse_model_constraint_file(ast)
   end
   if ast.type.to_s == "command"
     funcname = ast[0].source
-    if $validate_apis&.include?(funcname)
+    if $read_constraints && $validate_apis&.include?(funcname)
       # puts"funcname #{funcname} #{ast.source}"
       constraints = parse_validate_constraint_function($cur_class.class_name, funcname, ast[1])
       $cur_class.addConstraints(constraints) unless constraints.empty?
