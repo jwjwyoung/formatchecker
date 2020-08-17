@@ -18,7 +18,8 @@ class Version_class
   # 1. type of change, will be one of [:tab_add, :tab_del, :tab_ren,
   #      :col_add, :col_del, :col_ren, :col_type, :fk_add, :fk_del
   #      :has_one_add, :has_one_del, :has_many_add, :has_many_del,
-  #      :has_belong_add, :has_belong_del, :assoc_change];
+  #      :has_belong_add, :has_belong_del, :assoc_change,
+  #      :idx_add, :idx_del];
   # 2. the table involved in the change. For table rename, this is the new name;
   # 3. other arguments:
   #
@@ -30,6 +31,7 @@ class Version_class
   #      * `:fk_add`, `:fk_del`: the added/deleted key
   #      * :has_{one,many,belong}_{add,del}: the model
   #      * `:assoc_change`: the model, new association type, old association type
+  #      * :idx_{add,del}: the index name and an array of indexed columns
   def compare_db_schema(old_vers)
     raise "please provide a block to compare_db_schema" unless block_given?
 
@@ -103,10 +105,10 @@ class Version_class
       idx = file.indices.keys.to_set
       old_idx = old_file.indices.keys.to_set
       (idx - old_idx).each do |i|
-        yield :idx_add, key, i
+        yield :idx_add, key, i, file.indices[i].columns
       end
       (old_idx - idx).each do |i|
-        yield :idx_del, key, i
+        yield :idx_del, key, i, old_file.indices[i].columns
       end
 
       file.columns.each do |ckey, col|

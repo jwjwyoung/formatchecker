@@ -408,7 +408,7 @@ end
 def handle_add_index(ast)
   # puts "handle_add_index" if $debug_mode
   children = ast.children
-  table_name = handle_symbol_literal_node(children[0])
+  table_name = handle_symbol_literal_node(children[0]) || handle_string_literal_node(children[0])
 
   columns = []
 
@@ -429,14 +429,21 @@ def handle_add_index(ast)
   end
 
   dic = extract_hash_from_list(children[2])
-  index_name = dic["name"]&.source || handle_symbol_literal_node(dic["name"]) || handle_string_literal_node(dic["name"])
+  index_name = handle_symbol_literal_node(dic["name"]) || handle_string_literal_node(dic["name"])
   index_name ||= "#{table_name}_#{columns.join('_')}"
   new_index = Index.new(index_name, table_name, columns)
   new_index.unique = true if dic["unique"]&.source == "true"
   table_class.addIndex(new_index)
 end
 
-def handle_remove_index(ast); end
+def handle_remove_index(ast)
+  table_name = handle_symbol_literal_node(ast[0]) || handle_string_literal_node(ast[0])
+  table = $model_classes[table_name.classify] || $dangling_classes[table_name.classify]
+  dic = extract_hash_from_list(ast[1])
+  index_name = handle_symbol_literal_node(dic["name"]) || handle_string_literal_node(dic["name"])
+  index_name ||= "#{table_name}_#{columns.join('_')}"
+  table.indices.except! index_name
+end
 
 def handle_rename_column(ast)
   children = ast.children
