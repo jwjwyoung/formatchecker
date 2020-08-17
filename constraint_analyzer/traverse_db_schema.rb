@@ -182,26 +182,28 @@ def load_version(yaml_root, version)
   Psych.load_file(yaml_dump)
 end
 
-# Gets the versions for `app_dir`. If the file "#{app_dir}/versions" exists, every line
-# in the file is treated as a version. Otherwise use the original `extract_commits`.
+# Gets the versions for `app_dir` and build them. If the file "#{app_dir}/versions"
+# exists, every line in the file is treated as a version. Otherwise use the original
+# `extract_commits`.
 def get_versions(app_dir, interval)
-  if File.readable?(File.join(app_dir, "versions"))
-    File.read(File.join(app_dir, "versions")).lines.map { |v| Version_class.new(app_dir, v) }
-  else
-    extract_commits(app_dir, interval)
-  end
+  versions = if File.readable?(File.join(app_dir, "versions"))
+               File.read(File.join(app_dir, "versions")).lines.map do |v|
+                 Version_class.new(app_dir, v)
+               end
+             else
+               extract_commits(app_dir, interval)
+             end
+  app_name = File.basename(app_dir)
+  version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
+  Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
+  versions.each { |v| build_version(version_his_folder, v) }
+  Parallel.map(versions) { |v| load_version(version_his_folder, v) }
 end
 
 def traverse_all_for_db_schema(app_dir, interval = nil)
   versions = get_versions(app_dir, interval)
   return if versions.length <= 0
 
-  app_name = File.basename(app_dir)
-  version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
-  Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
-
-  versions.each { |v| build_version(version_his_folder, v) }
-  versions = Parallel.map(versions) { |v| load_version(version_his_folder, v) }
   # version and it's change counts
   version_chg = []
   # number of versions that include an action
