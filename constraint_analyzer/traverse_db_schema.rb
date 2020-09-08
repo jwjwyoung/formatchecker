@@ -164,6 +164,18 @@ class Version_class
       yield :tab_del, key
     end
   end
+
+  def text_typed_index
+    @activerecord_files.each_value do |file|
+      file.indices.values.to_set.each do |idx|
+        table_name = idx.table_name.classify
+        columns = @activerecord_files[table_name].columns
+        idx.columns.to_set.each do |col|
+          yield table_name, columns[col].column_name if columns[col]&.column_type == "text"
+        end
+      end
+    end
+  end
 end
 
 # Builds a `Version_class` and save it to cache
@@ -234,6 +246,18 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
     this_version_has.each do |ac, num|
       version_with[ac] += 1 unless num.zero?
       total_action[ac] += num
+    end
+  end
+end
+
+def text_typed_indexes(app_dir, interval = nil)
+  versions = get_versions(app_dir, interval)
+  return if versions.length <= 0
+
+  versions.each do |vers|
+    shortv = shorten_commit(vers.commit)
+    vers.text_typed_index do |tab, col|
+      puts "#{shortv} #{tab}.#{col}"
     end
   end
 end
