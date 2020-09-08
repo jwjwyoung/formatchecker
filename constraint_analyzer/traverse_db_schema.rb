@@ -218,6 +218,7 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   versions = get_versions(app_dir, interval)
   return if versions.length <= 0
 
+  versions << Version_class.new(app_dir, "00000000")
   # version and it's change counts
   version_chg = []
   # number of versions that include an action
