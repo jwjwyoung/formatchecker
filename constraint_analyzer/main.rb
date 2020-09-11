@@ -14,6 +14,7 @@ require_relative "./extract_statistics.rb"
 require_relative "./ast_handler.rb"
 require_relative "./traverse_db_schema.rb"
 require_relative "./parse_concerns.rb"
+require_relative "./check_pattern.rb"
 
 require "optparse"
 require "yard"
@@ -92,6 +93,19 @@ OptionParser.new do |opts|
   opts.on("--tschema", "traverse DB schema") do |_|
     options[:tschema] = true
   end
+  opts.on("--check", "check errors") do |_|
+    options[:check] = true
+  end
+  opts.on("--cvers version", "which version to check") do |v|
+    options[:check_vers] = v
+  end
+  opts.on("--column Table.column", "which column to check") do |v|
+    tab, col = v.split ".", 2
+    if tab && col
+      options[:check_tab] = tab
+      options[:check_col] = col
+    end
+  end
 end.parse!
 
 $read_html = true
@@ -111,6 +125,10 @@ if options[:tva] && interval
   else
     traverse_all_versions(application_dir, interval, true)
   end
+end
+
+if options[:check]
+  check_code(application_dir, options[:check_vers] || "master", options[:check_tab], options[:check_col])
 end
 
 if options[:tschema]
