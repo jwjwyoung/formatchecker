@@ -235,11 +235,21 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   # newest versions come first
   versions.each_cons(2).each do |newv, curv|
     this_version_has = Hash.new 0
+    shortv = shorten_commit(newv.commit)
+    shortvo = shorten_commit(curv.commit)
+    newv.to_schema()
     newv.compare_db_schema(curv) do |action, table, *args|
       case action
       when :col_ren, :col_del, :col_type, :col_add
         col = args[0]
         column_changes[table][col] += 1 unless action == :col_add
+        puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args}" if action == :col_del
+      when :fk_del, :has_one_del, :has_many_del
+        puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args[0]}"
+      when :assoc_change
+        puts "#{shortvo} #{shortv} \e[33;1m#{action}\e[37;0m #{table} #{args[0]} #{args[-1]} → #{args[-2]}"
+      when :idx_del
+        puts "#{shortvo} #{shortv} \e[34;1m#{action}\e[37;0m #{table} #{args[0]} #{args[1]}"
       end
       this_version_has[action] += 1
     end
@@ -249,6 +259,9 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
       total_action[ac] += num
     end
   end
+  p "#{version_with_change(version_chg)}/#{version_chg.length}"
+  p freq_change_column(column_changes).join "/"
+  p total_action
 end
 
 def text_typed_indexes(app_dir, interval = nil)
@@ -320,5 +333,5 @@ def output_csv_schema_change(path, version_chg, total_action)
 end
 
 def shorten_commit(commit)
-  commit.start_with?("refs/tags/") ? commit.sub("refs/tags/", "") : commit[..7]
+  commit.start_with?("refs/tags/") ? commit.sub("refs/tags/", "") : commit[0..7]
 end

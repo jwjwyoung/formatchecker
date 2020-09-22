@@ -18,7 +18,15 @@ class Version_class
     @loc = 0
     @validation_functions = {}
   end
+  
+  def to_schema()
 
+    @activerecord_files.each do |k, v|
+      v.to_schema()
+    end
+
+  end
+  
   def getDbConstraints
     @db_constraints
   end

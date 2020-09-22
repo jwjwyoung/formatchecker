@@ -87,7 +87,7 @@ def extract_commits(directory, interval = nil, tag_unit = true)
   # For applications not in `app_version_size.keys`, it's `version_size` is zero,
   # so don't chop the versions here.
   # versions = versions.reverse[0...version_size].reverse unless version_size.zero?
-  versions[..300]
+  versions[0..300]
 end
 
 def get_tags_before_certain_date(commit, directory)
