@@ -22,7 +22,23 @@ class File_class
     @has_one_classes = {}
     @has_belong_classes = Set.new
     @prev_class_name = nil
-    @included_concerns = Set.new
+    @included_concerns = Set.new 
+  end
+
+  def to_schema()
+    @columns.each do |c, v|
+      print "#{v.column_name} => #{v.column_type}"
+    end
+    puts ""
+    has_belong_classes.each do |c, v|
+      puts "#{c} belong"
+    end
+    has_many_classes.each do |c, v|
+      puts "#{c} has_many"
+    end
+    has_one_classes.each do |c, v|
+      puts "#{c} has_one"
+    end
   end
 
   def addFunction(funcname, ast)
