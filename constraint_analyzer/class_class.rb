@@ -1,7 +1,7 @@
 class File_class
   attr_accessor :filename, :class_name, :upper_class_name, :ast, :is_activerecord, :is_deleted, :indices,
                 :contents, :functions, :has_many_classes, :prev_class_name, :foreign_keys,
-                :has_one_classes, :has_belong_classes, :included_concerns
+                :has_one_classes, :has_belong_classes, :included_concerns, :relations
   attr_reader :columns
 
   def initialize(filename)
@@ -23,22 +23,24 @@ class File_class
     @has_belong_classes = Set.new
     @prev_class_name = nil
     @included_concerns = Set.new 
+    @relations = []
   end
 
+  def addRelation(column, dic, rel)
+    class_name  = handle_string_literal_node(dic['class_name']) || handle_tstring_content_node(dic['class_name'])
+    foreign_key = handle_string_literal_node(dic['foreign_key']) || handle_tstring_content_node(dic['foreign_key'])
+    if not class_name
+      class_name = column.singularize
+    end
+    class_name = class_name.capitalize
+    relation = {:rel => rel, :field => column, :class_name => class_name, :column => foreign_key}
+    @relations << relation
+  end
+  
   def to_schema()
-    @columns.each do |c, v|
-      print "#{v.column_name} => #{v.column_type}"
-    end
-    puts ""
-    has_belong_classes.each do |c, v|
-      puts "#{c} belong"
-    end
-    has_many_classes.each do |c, v|
-      puts "#{c} has_many"
-    end
-    has_one_classes.each do |c, v|
-      puts "#{c} has_one"
-    end
+    fields = {}
+    @columns.map{|c, v| fields[v.column_name] = v.column_type}
+    return @fields, @relations
   end
 
   def addFunction(funcname, ast)
