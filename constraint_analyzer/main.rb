@@ -15,7 +15,7 @@ require_relative "./ast_handler.rb"
 require_relative "./traverse_db_schema.rb"
 require_relative "./parse_concerns.rb"
 require_relative "./check_pattern.rb"
-
+require "/Users/junwenyang/Research/query_constraint_analyzer/load.rb"
 require "optparse"
 require "yard"
 require "active_support"

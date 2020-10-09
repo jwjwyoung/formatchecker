@@ -42,6 +42,13 @@ class Version_class
   def extract_files
     @files, @concerns = read_constraint_files(@app_dir, @commit) if @app_dir && @commit
   end
+    
+  def extract_queries
+    app_name = @app_dir.split("/")[-1]
+    options, app_dir = get_config(app_name)
+    puts "CONFIG : #{options}"
+    raw_queries, scopes, schema = load_queries_and_schema(@app_dir, options[:tmp_dir], options[:rails_best_practices_cmd], self)
+  end 
 
   def extract_constraints
     num = 0
@@ -540,6 +547,7 @@ class Version_class
     extract_constraints
     apply_concerns
     print_columns
+    extract_queries
     begin
       calculate_loc
     rescue StandardError
