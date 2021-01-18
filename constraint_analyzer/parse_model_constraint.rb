@@ -1,4 +1,5 @@
 def parse_model_constraint_file(ast)
+  #puts "***************" + ast.type.to_s + ", " + ast.source
   if ast.type.to_s == "list"
     ast.children.each do |child|
       parse_model_constraint_file(child)
@@ -36,6 +37,9 @@ def parse_model_constraint_file(ast)
   end
   if ast.type.to_s == "command"
     funcname = ast[0].source
+    if funcname == "before_save"
+      $cur_class.addBeforeSaveFcuntions(parse_before_saves(ast))
+    end
     if $validate_apis and $validate_apis.include? funcname
       # puts"funcname #{funcname} #{ast.source}"
       constraints = parse_validate_constraint_function($cur_class.class_name, funcname, ast[1])
@@ -48,10 +52,10 @@ def parse_model_constraint_file(ast)
         $cur_class.addForeignKey(key_field)
       end
     end
-    if funcname == "has_many" || funcname == "belongs_to" 
+    if funcname == "has_many" || funcname == "belongs_to"
       columns = []
       dic = {}
-      puts "#{funcname} #{ast.type}"
+      # puts "#{funcname} #{ast.type}"
       ast[1].children.each do |child|
         if child.type.to_s == "symbol_literal"
           column = handle_symbol_literal_node(child)
@@ -68,8 +72,8 @@ def parse_model_constraint_file(ast)
             end
           end
         end
-				#puts "dict = #{dic} || columns = #{columns}"
-				#puts ""
+        #puts "dict = #{dic} || columns = #{columns}"
+        #puts ""
       end
       if funcname == "has_many"
         columns.each do |column|
@@ -88,18 +92,39 @@ def parse_model_constraint_file(ast)
           end
         end
       end
-			if !dic["polymorphic"].nil?
-				columns.each do |column|
+      if !dic["polymorphic"].nil?
+        columns.each do |column|
           type = Constraint::MODEL
-					constraint = Inclusion_constraint.new($cur_class.class_name, column+"_type", type, nil, nil)
-					cs << constraint
-				end
-			end
+          constraint = Inclusion_constraint.new($cur_class.class_name, column + "_type", type, nil, nil)
+          cs << constraint
+        end
+      end
     end
   end
   if ast.type.to_s == "def"
     funcname = ast[0].source
     $cur_class.addFunction(funcname, ast)
+    if $cur_class.getBeforeSaveFunctions().include? funcname
+      cs = parse_before_save_constraint_function(ast)
+      # puts cs.to_s
+      # puts "*****************"
+      $cur_class.addConstraints(cs) if cs.length > 0
+    end
+  end
+
+  if ast.type.to_s == "fcall" && ast[0].source == "before_save"
+    # before_save do
+    #  self.build_tags
+    #  self.construct_full_name
+    # end
+    # step into do block
+    ast[2].children[0].each do |child|
+      if child[0].source == "self" &&
+         child[1].source == "." &&
+         child[2].type.to_s == "ident"
+        $cur_class.addBeforeSaveFcuntions([child[2].source])
+      end
+    end
   end
 end
 
@@ -123,6 +148,183 @@ def parse_foreign_key(ast)
     key_field = handle_string_literal_node(dic["foreign_key"])
   end
   return key_field
+end
+
+def is_all_db_fields(fields)
+  # fields.each do |field|
+  #   if !$cur_class.getColumns().include? field
+  #     return false
+  #   end
+  # end
+  # puts "++++++++++++++++++++"
+  # puts fields.to_s
+  # puts $cur_class.getColumns().to_s
+  # puts "++++++++++++++++++++"
+  return true
+end
+
+def check_binary_opt_get_fields(ast)
+  fields = []
+  while ast.type.to_s == "binary"
+    if !is_all_db_fields([ast[2].source])
+      return []
+    end
+    fields << ast[2].source
+    ast = ast[0]
+  end
+  return fields
+end
+
+def find_symbol_assignments(ast, ident)
+  rhs_fields = []
+  sources = []
+  if ast.type.to_s == "assign" && ast[0].source == ident
+    # check if only has binary operators
+    fields = check_binary_opt_get_fields(ast[1])
+    if fields.length == 0
+      fields = check_built_in_get_fields(ast[1])[1]
+    end
+
+    sources += [ast.source]
+    rhs_fields += fields
+    return rhs_fields, sources
+  end
+
+  if ast.type.to_s == "opassign" && ast[0].source == ident
+    rhs_fields += [ast[2].source]
+    sources += [ast.source]
+    return rhs_fields, sources
+  end
+
+  ast.children.each do |child|
+    rets = find_symbol_assignments(child, ident)
+    rhs_fields += rets[0]
+    sources += rets[1]
+  end
+  return rhs_fields, sources
+end
+
+def parse_before_save_constraint_function(ast)
+  constraints = []
+  constraints += parse_downcase_and_equal_constraint(ast)
+  constraints += parse_builtin_assign(ast)
+end
+
+def find_vars(ast)
+  vars = []
+  if ast.type.to_s == "var_ref"
+    vars << ast.source
+  end
+  ast.children.each do |child|
+    vars += find_vars(child)
+  end
+  return vars
+end
+
+def check_built_in_get_fields(ast)
+  fields = []
+  if ast.type.to_s == "call"
+    if !["many?", "first", "split", "downcase", "strip", "size"].include? ast[2].source
+      return false, []
+    end
+    fields << ast[0].source
+  end
+  ast.children.each do |child|
+    if !check_built_in_get_fields(child)[0]
+      return false, []
+    end
+  end
+  return true, fields
+end
+
+# def set_environment_type
+#   names = name.split('/')
+#   self.environment_type = names.many? ? names.first : nil
+# end
+
+# def update_storage_size
+#   storage_size = repository_size + wiki_size + lfs_objects_size + build_artifacts_size + packages_size
+#   # The `snippets_size` column was added on 20200622095419 but db/post_migrate/20190527194900_schedule_calculate_wiki_sizes.rb
+#   # might try to update project statistics before the `snippets_size` column has been created.
+#   storage_size += snippets_size if self.class.column_names.include?("snippets_size")
+
+#   # The `pipeline_artifacts_size` column was added on 20200817142800 but db/post_migrate/20190527194900_schedule_calculate_wiki_sizes.rb
+#   # might try to update project statistics before the `pipeline_artifacts_size` column has been created.
+#   storage_size += pipeline_artifacts_size if self.class.column_names.include?("pipeline_artifacts_size")
+
+#   # The `uploads_size` column was added on 20201105021637 but db/post_migrate/20190527194900_schedule_calculate_wiki_sizes.rb
+#   # might try to update project statistics before the `uploads_size` column has been created.
+#   storage_size += uploads_size if self.class.column_names.include?("uploads_size")
+
+#   self.storage_size = storage_size
+# end
+def parse_builtin_assign(ast)
+  constraints = []
+  body = ast[2]
+  body.children.each do |child|
+    left_field = child[0].jump(:ident).source
+    if child.type.to_s == "assign" && is_all_db_fields([left_field])
+      vars = find_vars(child[1]).uniq
+      if check_built_in_get_fields(child[1])[0]
+        input_fields = []
+        fds = []
+        vars.each do |var|
+          if var != "nil" && var != "self"
+            rets = find_symbol_assignments(body, var)
+            fds += rets[1]
+            input_fields += rets[0]
+          end
+        end
+        if input_fields.length > 0
+          fds << child.source
+          cs = FD_constraint.new($cur_class.class_name, left_field, Constraint::DB)
+          cs.input_fields = input_fields
+          cs.fd = fds
+          constraints << cs
+          puts cs.to_string
+          puts "----------"
+        end
+      end
+    end
+  end
+  return constraints
+end
+
+def parse_downcase_and_equal_constraint(ast)
+  constraints = []
+  if ast.type.to_s == "assign"
+    rhs = ast[1]
+    lhs = ast[0]
+
+    left_field = lhs.jump(:ident).source
+    if is_all_db_fields([left_field])
+      # self.name_lower = name.downcase
+      # self.full_name = [self.first_name, self.last_name].join(' ').downcase.strip
+      # self.markdown_character_count = body_markdown.size
+      if (rhs.type.to_s == "call" && rhs[2].source == "downcase") ||
+         (rhs.type.to_s == "call" && rhs[2].source == "strip" && rhs[0][2].source == "downcase") ||
+         (rhs.type.to_s == "call" && rhs[2].source == "size")
+        rhs_fields = []
+        rhs.jump(:array)[0].each do |field|
+          rhs_fields << field.jump(:ident).source
+        end
+        rhs_fields = [rhs[0].source] if rhs_fields.length == 0
+        # check if right/left fields are db fields
+        if is_all_db_fields(rhs_fields)
+          cs = FD_constraint.new($cur_class.class_name, left_field, Constraint::DB)
+          cs.input_fields = rhs_fields
+          cs.fd = rhs.source
+          puts cs.to_string
+          puts "----------"
+          constraints << cs
+        end
+      end
+    end
+  end
+  ast.children.each do |child|
+    constraints += parse_downcase_and_equal_constraint(child)
+  end
+  return constraints
 end
 
 def parse_validate_constraint_function(table, funcname, ast)
@@ -243,6 +445,17 @@ def list_contains_conditional(list_node)
   end
 
   return result
+end
+
+def parse_before_saves(ast)
+  columns = []
+  ast[1].children.each do |child|
+    if child.type.to_s == "symbol_literal"
+      column = handle_symbol_literal_node(child)
+      columns << column
+    end
+  end
+  return columns
 end
 
 def parse_validates(table, funcname, ast)
@@ -421,4 +634,3 @@ def parse_validates_each(table, type, ast)
   # puts "create parse_validates_each constriants #{constraints.size} #{constraints[0].column}-#{constraints[0].class.name}-#{type}" if constraints.size > 0
   constraints
 end
-

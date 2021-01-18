@@ -442,9 +442,18 @@ end
 
 class HasMany_constraint < Constraint
   attr_accessor :dependent
+
   def parse(dic)
     if dic["dependent"]
       self.dependent = true
     end
-  end 
+  end
+end
+
+class FD_constraint < Constraint
+  attr_accessor :input_fields, :fd
+
+  def to_string
+    return "#{super} #{self.input_fields} #{self.fd}"
+  end
 end

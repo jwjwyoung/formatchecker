@@ -14,6 +14,7 @@ def os_walk(dir)
 end
 
 def read_constraint_files(application_dir = nil, version = "")
+  puts application_dir
   if application_dir and version
     $app_dir2 = application_dir
   else
@@ -52,7 +53,7 @@ def read_constraint_files(application_dir = nil, version = "")
     end
   end
 
-  puts "controller_files #{controller_files.length}"
+  # puts "controller_files #{controller_files.length}"
   $write_action_num = 0
   $no_resuce_num = 0
   controller_files.each do |filename|
@@ -66,21 +67,21 @@ def read_constraint_files(application_dir = nil, version = "")
       $code = ""
       $fn = filename
       parse_controller_file(ast)
-      if $code
-        puts "#{filename} #{$write_action_num} #{$no_resuce_num}"
-        puts $code
-      end
+      # if $code
+      #   puts "#{filename} #{$write_action_num} #{$no_resuce_num}"
+      #   puts $code
+      # end
     rescue
     end
   end
-  puts "#{$write_action_num} #{$no_resuce_num}"
+  # puts "#{$write_action_num} #{$no_resuce_num}"
   exit if ENV["rescue"]
   model_files.each do |filename|
     begin
       file = open(filename)
       contents = file.readlines.reject { |l| /^\s*#/.match l }.join
       file.close
-    # puts "reach here true #{filename}" if filename.include?"app/models/wiki_page.rb"
+      # puts "reach here true #{filename}" if filename.include?"app/models/wiki_page.rb"
       ast = YARD::Parser::Ruby::RubyParser.parse(contents).root
       $cur_class = File_class.new(filename)
       $cur_class.ast = ast
@@ -96,8 +97,8 @@ def read_constraint_files(application_dir = nil, version = "")
       end
       # puts "add new class #{$cur_class.class_name} #{$cur_class.upper_class_name}"
     rescue => error
-			puts error
-      # puts "failed filename: #{filename}"
+      puts error
+      puts "failed filename: #{filename}"
     end
   end
   # puts "finished handle model files #{model_files.length} #{model_classes.length}"

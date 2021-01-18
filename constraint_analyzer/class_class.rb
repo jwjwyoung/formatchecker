@@ -16,6 +16,7 @@ class File_class
     @contents = ""
     @functions = {}
     @has_many_classes = {}
+    @before_save_functions = []
   end
 
   def addFunction(funcname, ast)
@@ -27,14 +28,24 @@ class File_class
       printFunction(k, v)
     end
   end
+
+  def addBeforeSaveFcuntions(funcnames)
+    @before_save_functions += funcnames
+  end
+
+  def getBeforeSaveFunctions()
+    return @before_save_functions
+  end
+
   def addHasMany(column, dic)
     if dic["dependent"]
       has_many_classes[column] = true
     else
       has_many_classes[column] = false
     end
-    puts "#{column} #{has_many_classes[column]}"
+    #puts "#{column} #{has_many_classes[column]}"
   end
+
   def printFunction(k, v)
     puts "====start of function #{k}===="
     puts "#{v.source}"

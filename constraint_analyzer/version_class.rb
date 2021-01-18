@@ -135,11 +135,11 @@ class Version_class
   end
 
   def print_columns
-    # puts"---------------columns-----------------"
+    puts "---------------columns-----------------"
     get_activerecord_files.each do |key, file|
-      # puts"#{key} #{file.getColumns.length}"
+      puts "#{key} #{file.getColumns.length}"
       file.getColumns.each do |key, column|
-        # puts"\t#{column.column_name}"
+        puts "\t#{column.column_name}"
       end
     end
   end
@@ -148,8 +148,8 @@ class Version_class
     changed_functions = {}
     added_functions = {}
     deleted_functions = {}
-    old_functions = old_version.validation_functions.map{|k,v| [k, v[1]]}.to_h
-    new_functions = self.validation_functions.map{|k,v| [k, v[1]]}.to_h
+    old_functions = old_version.validation_functions.map { |k, v| [k, v[1]] }.to_h
+    new_functions = self.validation_functions.map { |k, v| [k, v[1]] }.to_h
 
     new_functions.each do |fn, ast|
       if old_functions[fn]
@@ -160,7 +160,7 @@ class Version_class
         added_functions[fn] = ast
       end
     end
-    deleted_functions = old_functions.select{|k,v| not new_functions[k]}
+    deleted_functions = old_functions.select { |k, v| not new_functions[k] }
 
     return changed_functions, added_functions, deleted_functions
   end
@@ -202,6 +202,7 @@ class Version_class
     end
     return newly_added_constraints, changed_constraints, existing_column_constraints, new_column_constraints, not_match_html_constraints
   end
+
   def get_all_table_column_size
     col_size = {}
     @activerecord_files.each do |key, file|
@@ -209,6 +210,7 @@ class Version_class
     end
     return col_size
   end
+
   def get_table_original_column_size(old_version)
     results = {}
     @activerecord_files.each do |key, file|
@@ -231,6 +233,7 @@ class Version_class
     end
     return results
   end
+
   def is_html_constraint_match_validate(old_constraints, column_keyword, constraint)
     key = column_keyword.gsub(Constraint::HTML, Constraint::MODEL)
     key2 = column_keyword.gsub(Constraint::HTML, Constraint::DB)
@@ -328,7 +331,7 @@ class Version_class
         end
       end
     end
-    
+
     puts "absent_category_count\tAppName\tAbsenceType\tCategory\tCount"
     puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tself_satisfied\t#{db_present_model_absent.select { |v| v[:category] == :self_satisfied }.count}"
     puts "absent_category_count\t#{@app_dir}\tdb_present_model_absent\tfk\t#{db_present_model_absent.select { |v| v[:category] == :fk }.count}"
@@ -373,14 +376,14 @@ class Version_class
       db_cons = file.getConstraints.select { |k, v| k.include? "-#{Constraint::DB}" }
       model_cons.each do |k, v|
         exists_in_db = (db_cons[k.gsub("-#{Constraint::MODEL}", "-#{Constraint::DB}")] != nil)
-        if v.instance_of?Presence_constraint
-          output << {:type => :presence, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
-        elsif v.instance_of?Inclusion_constraint
-          output << {:type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
-        elsif v.instance_of?Uniqueness_constraint
-          output << {:type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db, :if_cond => v.if_cond}
-        elsif v.instance_of?Format_constraint
-          output << {:type => :format, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :value => v.with_format, :if_cond => v.if_cond}
+        if v.instance_of? Presence_constraint
+          output << { :type => :presence, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond }
+        elsif v.instance_of? Inclusion_constraint
+          output << { :type => :inclusion, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :if_cond => v.if_cond }
+        elsif v.instance_of? Uniqueness_constraint
+          output << { :type => :uniqueness, :table => v.table, :fields => [v.column] + v.scope, :exists_in_db => exists_in_db, :if_cond => v.if_cond }
+        elsif v.instance_of? Format_constraint
+          output << { :type => :format, :table => v.table, :fields => v.column, :exists_in_db => exists_in_db, :value => v.with_format, :if_cond => v.if_cond }
         end
       end
     end
@@ -508,6 +511,7 @@ class Version_class
     end
     return num_column, num_column_has_constraints
   end
+
   def clean
     @files = nil
     @validation_functions = nil
@@ -521,18 +525,20 @@ class Version_class
       end
     end
   end
+
   def build
     self.extract_files
     self.annotate_model_class
     self.extract_constraints
     self.print_columns
-    begin
-      self.calculate_loc
-    rescue
-    end
-    self.extract_validate_functions
-    puts "@active_files : #{@activerecord_files.size}"
+    # begin
+    #   self.calculate_loc
+    # rescue
+    # end
+    # self.extract_validate_functions
+    # puts "@active_files : #{@activerecord_files.size}"
   end
+
   def extract_validate_functions
     all_functions = {}
     @activerecord_files.each do |key, file|
@@ -554,11 +560,11 @@ class Version_class
         end
       end
     end
-
   end
+
   def print_validate_functions
     contents = ""
-    self.validation_functions.each do |k,value|
+    self.validation_functions.each do |k, value|
       file = value[0]
       v = value[1]
       contents += "====start of function #{k}====\n"
@@ -590,18 +596,19 @@ class Version_class
       @loc = 0
     end
   end
+
   def find_non_destroy_assoc
-    non_destroy_assocs = [] 
+    non_destroy_assocs = []
     @activerecord_files.each do |key, file|
-      no_destroy_tables = file.has_many_classes.select{|k, v| not v}.map{|k,v| k}
+      no_destroy_tables = file.has_many_classes.select { |k, v| not v }.map { |k, v| k }
       puts "no_destroy_tables: #{no_destroy_tables.size}"
       no_destroy_tables.each do |column|
         class_name = convert_tablename(column)
-        class_class = @activerecord_files[class_name] ||  @activerecord_files["Spree"+class_name]
+        class_class = @activerecord_files[class_name] || @activerecord_files["Spree" + class_name]
         # puts "class_name: #{class_name}"
         # puts @activerecord_files.keys
         if class_class
-          if key.include?"Spree"
+          if key.include? "Spree"
             key = key[5..-1]
           end
           p_c_k = "#{class_name}-#{key.downcase}-#{Presence_constraint}-#{Constraint::MODEL}"
@@ -617,11 +624,12 @@ class Version_class
     end
     return non_destroy_assocs
   end
+
   def class_with_custom_function
     cwcf = {}
     cnt = 0
     @activerecord_files.each do |key, file|
-      size = file.getConstraints.select { |k,v| v.instance_of?Customized_constraint or v.instance_of?Function_constraint }.size
+      size = file.getConstraints.select { |k, v| v.instance_of? Customized_constraint or v.instance_of? Function_constraint }.size
       if size > 0
         cwcf[key] = size
         cnt += 1
@@ -630,4 +638,3 @@ class Version_class
     return cwcf
   end
 end
-
