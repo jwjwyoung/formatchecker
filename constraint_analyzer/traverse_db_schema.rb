@@ -180,12 +180,13 @@ end
 
 # Builds a `Version_class` and save it to cache
 def build_version(yaml_root, version)
-  yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
-  return if File.exist? yaml_dump
+  # yaml_dump = File.join(yaml_root, version.commit.gsub("/", "-"))
+  # return if File.exist? yaml_dump
 
   version.build
   version.clean
-  File.open(yaml_dump, "w") { |f| f.write(Psych.dump(version)) }
+  #File.open(yaml_dump, "w") { |f| f.write(Psych.dump(version)) }
+  #exit
 end
 
 # Loads a vendored `Version_class` from cache
@@ -205,17 +206,22 @@ def get_versions(app_dir, interval)
                  Version_class.new(app_dir, v)
                end
              else
-               extract_commits(app_dir, interval)
+               #extract_commits(app_dir, interval, false)
+               extract_commits(app_dir, 10, false)
              end
-  app_name = File.basename(app_dir)
-  version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
-  Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
-  versions.each { |v| build_version(version_his_folder, v) }
-  Parallel.map(versions) { |v| load_version(version_his_folder, v) }
+  # app_name = File.basename(app_dir)
+  # version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
+  # Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
+  # versions.each { |v| build_version(version_his_folder, v) }
+  # Parallel.map(versions) { |v| load_version(version_his_folder, v) }
 end
 
 def traverse_all_for_db_schema(app_dir, interval = nil)
   versions = get_versions(app_dir, interval)
+  app_name = File.basename(app_dir)
+  version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
+  Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
+  puts("LENGTH: #{versions.length}")
   return if versions.length <= 0
 
   versions << Version_class.new(app_dir, "00000000")
@@ -233,17 +239,37 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
   # change in columns: column_changes[table_name][column_name] = count
   column_changes = Hash.new { |hash, k| hash[k] = Hash.new 0 }
   # newest versions come first
+  build_version(version_his_folder, versions[0])
   versions.each_cons(2).each do |newv, curv|
+    build_version(version_his_folder, curv)
     this_version_has = Hash.new 0
     shortv = shorten_commit(newv.commit)
     shortvo = shorten_commit(curv.commit)
     newv.to_schema()
+    change = {}
+    [:tab_del, :tab_ren, :col_ren, :col_del].each do |action| 
+      change[action] = []
+    end
     newv.compare_db_schema(curv) do |action, table, *args|
       case action
+      when :tab_del
+        change[action] << "#{table}"
+        puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table}"   
+      when :tab_ren
+        change[action] << "#{args[0]}"
       when :col_ren, :col_del, :col_type, :col_add
         col = args[0]
         column_changes[table][col] += 1 unless action == :col_add
-        puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args}" if action == :col_del
+        if action == :col_del
+          puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args}"       
+          change[action] << "#{table}_#{args[0]}"
+          puts change
+        end
+        if action == :col_ren
+          puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args}"         
+          change[action] << "#{table}_#{args[-1]}"
+          puts change
+        end
       when :fk_del, :has_one_del, :has_many_del
         puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args[0]}"
       when :assoc_change
@@ -252,6 +278,12 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
         puts "#{shortvo} #{shortv} \e[34;1m#{action}\e[37;0m #{table} #{args[0]} #{args[1]}"
       end
       this_version_has[action] += 1
+    end
+    if change.values.map{|x| x.length}.sum > 0    
+      #exit
+      # checkout to current version
+      newv.extract_queries
+      newv.check_queries(change)
     end
     version_chg << [newv.commit, this_version_has]
     this_version_has.each do |ac, num|

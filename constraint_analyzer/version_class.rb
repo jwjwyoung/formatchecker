@@ -1,6 +1,6 @@
 class Version_class
   attr_accessor :app_dir, :commit, :total_constraints_num, :db_constraints_num, :model_constraints_num,
-                :html_constraints_num, :loc, :activerecord_files, :validation_functions, :concerns
+                :html_constraints_num, :loc, :activerecord_files, :validation_functions, :concerns, :queries, :scope, :schema
 
   def initialize(app_dir, commit)
     @app_dir = app_dir
@@ -17,6 +17,9 @@ class Version_class
     @html_constraints = []
     @loc = 0
     @validation_functions = {}
+    @queries = nil
+    @scope = nil
+    @schema = nil
   end
   
   def to_schema()
@@ -46,9 +49,16 @@ class Version_class
   def extract_queries
     app_name = @app_dir.split("/")[-1]
     options, app_dir = get_config(app_name)
-    puts "CONFIG : #{options}"
-    raw_queries, scopes, schema = load_queries_and_schema(@app_dir, options[:tmp_dir], options[:rails_best_practices_cmd], self)
+    puts "CONFIG : #{options} #{app_dir}"
+    `cd #{app_dir}; git checkout -f #{self.commit}`
+    @raw_queries, @scopes, @schema = load_queries_and_schema(@app_dir, options[:tmp_dir], options[:rails_best_practices_cmd], self)
+    puts "QUERY NUM #{@raw_queries.length}"
+    #print_detail_with_sql(@raw_queries, @scopes, @schema, change)
+    #exit
   end 
+  def check_queries(change)
+    print_detail_with_sql(@raw_queries, @scopes, @schema, change)
+  end
 
   def extract_constraints
     num = 0
@@ -547,7 +557,7 @@ class Version_class
     extract_constraints
     apply_concerns
     print_columns
-    extract_queries
+    #extract_queries
     begin
       calculate_loc
     rescue StandardError

@@ -76,18 +76,22 @@ def parse_model_constraint_file(ast)
         columns.each do |column|
           # puts "#{column} #{dic}"
           $cur_class.addHasMany(column.singularize, dic)
+          $cur_class.addRelation(column, dic, "has_many")
         end
       when "has_one"
         columns.each do |column|
           $cur_class.has_one_classes[column] = dic["dependent"] ? true : false
+          $cur_class.addRelation(column, dic, "has_one")
         end
       when "has_and_belongs_to_many"
         columns.each do |column|
           $cur_class.has_belong_classes << column.singularize
+          $cur_class.addRelation(column, dic, "has_and_belongs_to_many")
         end
       when "belongs_to"
         cs = []
         columns.each do |column|
+          $cur_class.addRelation(column, dic, "belongs_to")
           unless dic["optional"]&.source == "true"
             type = Constraint::MODEL
             constraint = Presence_constraint.new($cur_class.class_name, column, type, nil, nil)
