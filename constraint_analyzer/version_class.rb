@@ -35,6 +35,42 @@ class Version_class
     end
   end
 
+  def extract_poly_constraints
+    belongs_to_polys = {}
+    has_many_polys = {}
+    has_many_polys.default = []
+    @activerecord_files.each do |key, file|
+      if !key.nil?
+        file.getHasManyAs().each do |as|
+          has_many_polys[as] = has_many_polys[as] + [file.class_name]
+        end
+        file.getBelongsToPoly().each do |belong|
+          belongs_to_polys[belong] = file.class_name
+        end
+      end
+    end
+
+    puts has_many_polys.to_s
+    puts belongs_to_polys.to_s
+
+    inclusions = {}
+    has_many_polys.each { |key, value|
+      if belongs_to_polys.key?(key)
+        inclusions[[belongs_to_polys[key], key]] = value
+      end
+    }
+
+    inclusions.each { |key, value|
+      constraint = Inclusion_constraint.new(key[0], key[1].to_s + "_type", Constraint::DB)
+      constraint.range = value
+      @activerecord_files.each do |class_name, file|
+        if class_name == key[0]
+          file.addConstraints([constraint])
+        end
+      end
+    }
+  end
+
   def extract_constraints
     num = 0
     @activerecord_files.each do |key, file|
@@ -529,8 +565,9 @@ class Version_class
   def build
     self.extract_files
     self.annotate_model_class
+    self.extract_poly_constraints
     self.extract_constraints
-    self.print_columns
+    # self.print_columns
     # begin
     #   self.calculate_loc
     # rescue

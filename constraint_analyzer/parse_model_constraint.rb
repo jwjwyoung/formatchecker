@@ -1,5 +1,4 @@
 def parse_model_constraint_file(ast)
-  #puts "***************" + ast.type.to_s + ", " + ast.source
   if ast.type.to_s == "list"
     ast.children.each do |child|
       parse_model_constraint_file(child)
@@ -48,7 +47,6 @@ def parse_model_constraint_file(ast)
     if funcname == "belongs_to"
       key_field = parse_foreign_key(ast[1])
       if key_field
-        # puts "foreign key: #{key_field}"
         $cur_class.addForeignKey(key_field)
       end
     end
@@ -72,13 +70,16 @@ def parse_model_constraint_file(ast)
             end
           end
         end
-        #puts "dict = #{dic} || columns = #{columns}"
-        #puts ""
+        # puts "dict = #{dic} || columns = #{columns}"
+        # puts ""
       end
+
       if funcname == "has_many"
         columns.each do |column|
-          # puts "#{column} #{dic}"
           $cur_class.addHasMany(column, dic)
+        end
+        if dic.has_key? "as"
+          $cur_class.addHasManyAs(handle_symbol_literal_node(dic["as"]))
         end
       end
       if funcname == "belongs_to"
@@ -91,6 +92,12 @@ def parse_model_constraint_file(ast)
             #$cur_class.addConstraints(cs) if cs.length > 0
           end
         end
+        if dic.has_key? "polymorphic" and dic["polymorphic"].source == "true"
+          if columns.length != 1
+            puts "[Poly Error] Columns has length greater than 1, columns " + columns.to_s
+          end
+          $cur_class.addBelongsToPoly(columns[0])
+        end
       end
       if !dic["polymorphic"].nil?
         columns.each do |column|
@@ -100,14 +107,27 @@ def parse_model_constraint_file(ast)
         end
       end
     end
+    if funcname == "state_machine"
+      # puts ast.source
+      rets = parse_state_field(ast[1][0])
+      column = rets[0]
+      # step into do block
+      possible_values = rets[1]
+      ast[2].children[0].each do |ast|
+        possible_values += parse_cmd_get_fields(ast)
+      end
+      constraint = Inclusion_constraint.new($cur_class.class_name, column, Constraint::MODEL)
+      constraint.range = possible_values.uniq
+      puts constraint.to_string
+      puts "---------"
+      $cur_class.addConstraints([constraint])
+    end
   end
   if ast.type.to_s == "def"
     funcname = ast[0].source
     $cur_class.addFunction(funcname, ast)
     if $cur_class.getBeforeSaveFunctions().include? funcname
       cs = parse_before_save_constraint_function(ast)
-      # puts cs.to_s
-      # puts "*****************"
       $cur_class.addConstraints(cs) if cs.length > 0
     end
   end
@@ -126,6 +146,69 @@ def parse_model_constraint_file(ast)
       end
     end
   end
+end
+
+def parse_state_field(ast)
+  possible_fields = []
+  column = nil
+  if ast.type.to_s == "symbol_literal"
+    column = handle_symbol_literal_node(ast)
+  end
+  if ast.type.to_s == "list"
+    ast.each do |child|
+      if handle_label_node(child[0]) == "initial"
+        possible_fields << handle_symbol_literal_node(child[1])
+      end
+    end
+  end
+  if column.nil?
+    column = "state"
+  end
+  return [column, possible_fields]
+end
+
+def parse_event_cmd(ast)
+  possible_fields = []
+  ast = ast.jump(:do_block)
+  if ast.children.length != 1
+    puts "[Error] even do block can only have one transition " + ast.children.to_s
+  end
+  ast = ast.children[0][0]
+  if ast[0].source == "transition"
+    # transition available: :stopped
+    ast = ast[1].jump(":assoc")[0]
+    ast.each do |assoc|
+      field1 = assoc[0].source if assoc[0].type.to_s == "vcall" # any
+      field1 ||= handle_label_node(assoc[0]) if assoc[0].type.to_s == "label"
+      next if field1 == "if"
+      if field1 != "from" && field1 != "to" && field1 != "any"
+        possible_fields << field1
+      end
+      if assoc[1].type.to_s == "array"
+        fields = handle_array_node(assoc[1])
+        possible_fields += fields if !fields.nil?
+      elsif assoc[1].type.to_s == "symbol_literal"
+        possible_fields << handle_symbol_literal_node(assoc[1])
+      end
+    end
+  end
+  return possible_fields
+end
+
+def parse_cmd_get_fields(cmd)
+  possible_fields = []
+  if cmd.children[0].source == "event"
+    possible_fields += parse_event_cmd(cmd)
+  end
+
+  if cmd.children[0].source == "state"
+    cmd.children[1].each do |child|
+      if child && child.type.to_s == "symbol_literal"
+        possible_fields << handle_symbol_literal_node(child)
+      end
+    end
+  end
+  return possible_fields
 end
 
 def parse_foreign_key(ast)

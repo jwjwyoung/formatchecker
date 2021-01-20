@@ -16,7 +16,25 @@ class File_class
     @contents = ""
     @functions = {}
     @has_many_classes = {}
+    @has_many_as = []
+    @belongs_to_poly = []
     @before_save_functions = []
+  end
+
+  def addHasManyAs(v)
+    @has_many_as << v
+  end
+
+  def getHasManyAs
+    return @has_many_as
+  end
+
+  def addBelongsToPoly(v)
+    @belongs_to_poly << v
+  end
+
+  def getBelongsToPoly
+    return @belongs_to_poly
   end
 
   def addFunction(funcname, ast)
