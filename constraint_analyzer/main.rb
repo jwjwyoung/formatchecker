@@ -70,7 +70,7 @@ OptionParser.new do |opts|
   end
   opts.on("--count-commits", "please specify whether you want to count the average commits") do |v|
     options[:count_commits] = true
-  end  
+  end
   opts.on("--count-destory", "please specify whether you want to count the destroy") do |v|
     options[:destroy] = true
   end
@@ -115,8 +115,7 @@ end
 
 if options[:compare_column_size] and interval
   extract_table_size_comparison(application_dir, interval)
-
-end 
+end
 
 if options[:custom_change] and interval
   puts "traverse to see custom change  options[:commit_unit] #{options[:commit_unit]}"
@@ -179,7 +178,7 @@ if options[:destroy]
 end
 if options[:if_checking]
   $read_html = false
-  $read_db = false
+  $read_db = true
   $if_output = open("../log/ifcheck.txt", "a")
   version = Version_class.new(application_dir, "master")
   version.build

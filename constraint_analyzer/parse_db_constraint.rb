@@ -329,7 +329,7 @@ end
 def handle_change_column_default(ast)
   # puts "handle_change_column_default" if $debug_mode
   children = ast.children
-  puts "ast.source #{ast.source} \n#{ast[0].type}"
+  # puts "ast.source #{ast.source} \n#{ast[0].type}"
   table = nil
   column_name = nil
   column_type = nil
@@ -337,7 +337,7 @@ def handle_change_column_default(ast)
   column_name = handle_symbol_literal_node(children[1]) || handle_string_literal_node(children[1])
   dic = {}
   dic = extract_hash_from_list(children[-1])
-  puts "#{table} = #{column_name} = #{column_type} --- #{dic}" if $debug_mode
+  # puts "#{table} = #{column_name} = #{column_type} --- #{dic}" if $debug_mode
   class_name = convert_tablename(table)
   table_class = $model_classes[class_name]
   table_class = $dangling_classes[class_name] if !table_class

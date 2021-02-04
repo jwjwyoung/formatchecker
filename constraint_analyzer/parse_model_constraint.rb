@@ -48,10 +48,10 @@ def parse_model_constraint_file(ast)
         $cur_class.addForeignKey(key_field)
       end
     end
-    if funcname == "has_many" || funcname == "belongs_to" 
+    if funcname == "has_many" || funcname == "belongs_to"
       columns = []
       dic = {}
-      puts "#{funcname} #{ast.type}"
+      # "#{funcname} #{ast.type}"
       ast[1].children.each do |child|
         if child.type.to_s == "symbol_literal"
           column = handle_symbol_literal_node(child)
@@ -68,8 +68,8 @@ def parse_model_constraint_file(ast)
             end
           end
         end
-				#puts "dict = #{dic} || columns = #{columns}"
-				#puts ""
+        #puts "dict = #{dic} || columns = #{columns}"
+        #puts ""
       end
       if funcname == "has_many"
         columns.each do |column|
@@ -88,18 +88,73 @@ def parse_model_constraint_file(ast)
           end
         end
       end
-			if !dic["polymorphic"].nil?
-				columns.each do |column|
+      if !dic["polymorphic"].nil?
+        columns.each do |column|
           type = Constraint::MODEL
-					constraint = Inclusion_constraint.new($cur_class.class_name, column+"_type", type, nil, nil)
-					cs << constraint
-				end
-			end
+          constraint = Inclusion_constraint.new($cur_class.class_name, column + "_type", type, nil, nil)
+          cs << constraint
+        end
+      end
     end
   end
   if ast.type.to_s == "def"
     funcname = ast[0].source
     $cur_class.addFunction(funcname, ast)
+    if $cur_class.getValidateFunction().include? funcname
+      parse_if_error_pattern(ast)
+    end
+  end
+end
+
+def check_condition(cond)
+  if cond.type.to_s == "binary" &&
+     cond[0].type.to_s == "vcall" &&
+     cond[2].type.to_s == "vcall"
+    # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }]
+    return true
+  end
+  return false
+end
+
+def check_if_error_field(ast)
+  conds = []
+  if (ast.type.to_s == "command_call" || ast.type.to_s == "call") && ast[0].source == "errors"
+    return true, []
+  end
+  if ast.type.to_s == "if" || ast.type.to_s == "if_mod"
+    # check conditions only contains fields
+    if !check_condition(ast[0])
+      # puts ast.source + "   Condition not OK"
+      return false, []
+    end
+    conds << ast[0]
+    # puts "check body---" + ast[1].type.to_s
+    # puts "check body---" + ast[1][0].source
+    ret = check_if_error_field(ast[1])
+    if ret[0]
+      conds = conds + ret[1]
+      return true, conds
+    end
+    ast[1].children.each do |child|
+      ret = check_if_error_field(child)
+      if ret[0]
+        conds = conds + ret[1]
+        return true, conds
+      end
+    end
+  end
+  return false, []
+end
+
+def parse_if_error_pattern(ast)
+  ast[2].children.each do |child|
+    ret = check_if_error_field(child)
+    if ret[0]
+      cs = Customized_constraint_if.new($cur_class.class_name, nil, Constraint::MODEL, nil, nil)
+      cs.src = ast.source
+      cs.cond = ret[1]
+      $cur_class.addConstraints([cs])
+    end
   end
 end
 
@@ -381,6 +436,7 @@ def handle_validate(table, type, ast)
     ast.children.each do |c|
       if c.type.to_s == "symbol_literal"
         funcname = handle_symbol_literal_node(c)
+        $cur_class.addValidateFunction(funcname)
         con = Function_constraint.new(table, nil, type)
         con.funcname = funcname
         constraints << con
@@ -421,4 +477,3 @@ def parse_validates_each(table, type, ast)
   # puts "create parse_validates_each constriants #{constraints.size} #{constraints[0].column}-#{constraints[0].class.name}-#{type}" if constraints.size > 0
   constraints
 end
-

@@ -16,6 +16,15 @@ class File_class
     @contents = ""
     @functions = {}
     @has_many_classes = {}
+    @validate_functions = []
+  end
+
+  def addValidateFunction(funcname)
+    @validate_functions << funcname
+  end
+
+  def getValidateFunction()
+    @validate_functions
   end
 
   def addFunction(funcname, ast)
@@ -27,18 +36,24 @@ class File_class
       printFunction(k, v)
     end
   end
+
   def addHasMany(column, dic)
     if dic["dependent"]
       has_many_classes[column] = true
     else
       has_many_classes[column] = false
     end
-    puts "#{column} #{has_many_classes[column]}"
+    # puts "#{column} #{has_many_classes[column]}"
   end
+
   def printFunction(k, v)
     puts "====start of function #{k}===="
     puts "#{v.source}"
     puts "====end of function #{k}===="
+  end
+
+  def removeConstraintByKey(k)
+    @constraints.delete(k)
   end
 
   def addConstraints(constraints)
@@ -48,7 +63,7 @@ class File_class
       @constraints[key] = constraint
       constraint.table = self.class_name
     end
-    puts "@constraints.size #{@constraints.length}" if $debug_mode
+    # puts "@constraints.size #{@constraints.length}" if $debug_mode
   end
 
   def check_whether_column_has_constraints
@@ -111,7 +126,7 @@ class File_class
         max_value = 65535
       end
       column_name = v.column_name
-      puts "max_value from type: #{max_value} #{column_name} #{column_type} #{@class_name}" if $debug_mode
+      #puts "max_value from type: #{max_value} #{column_name} #{column_type} #{@class_name}" if $debug_mode
       if max_value
         constraint = Length_constraint.new(@class_name, column_name, type)
         constraint.max_value = max_value
@@ -188,7 +203,7 @@ class Column
     @auto_increment = false
     @has_constraints = false
     self.parse(dic)
-    puts "dic: #{dic.to_s}" if $debug_mode
+    #puts "dic: #{dic.to_s}" if $debug_mode
   end
 
   def getTableClass
@@ -200,7 +215,7 @@ class Column
   end
 
   def parse(dic)
-    puts "dic #{dic["default"]&.type}" if $debug_mode
+    #puts "dic #{dic["default"]&.type}" if $debug_mode
     ast = dic["default"]
     if ast
       value = dic["default"]&.source if dic["default"]&.type.to_s == "var_ref"

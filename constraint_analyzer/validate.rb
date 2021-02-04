@@ -440,11 +440,16 @@ end
 class Customized_constraint < Constraint
 end
 
+class Customized_constraint_if < Constraint
+  attr_accessor :src, :cond
+end
+
 class HasMany_constraint < Constraint
   attr_accessor :dependent
+
   def parse(dic)
     if dic["dependent"]
       self.dependent = true
     end
-  end 
+  end
 end
