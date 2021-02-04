@@ -61,10 +61,10 @@ def handle_cross_line_string(sql)
   if sql.start_with? "<"
     sql = sql.lines[1...-1].join
     begin
-      puts "sql : #{sql}"
+      #puts "sql : #{sql}"
       PgQuery.parse(sql)
     rescue
-      puts "Illegal query reset to null"
+      #puts "Illegal query reset to null"
       sql = ""
     end
     return sql

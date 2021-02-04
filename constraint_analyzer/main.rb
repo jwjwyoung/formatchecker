@@ -178,7 +178,7 @@ if options[:destroy]
 end
 if options[:if_checking]
   $read_html = false
-  $read_db = false
+  $read_db = true
   $if_output = open("../log/ifcheck.txt", "a")
   version = Version_class.new(application_dir, "master")
   version.build

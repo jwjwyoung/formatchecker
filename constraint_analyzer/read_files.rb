@@ -101,6 +101,7 @@ def read_constraint_files(application_dir = nil, version = "")
       puts "failed filename: #{filename}"
     end
   end
+
   # puts "finished handle model files #{model_files.length} #{model_classes.length}"
   $model_classes = model_classes
   $dangling_classes = {}
@@ -122,7 +123,11 @@ def read_constraint_files(application_dir = nil, version = "")
       end
     end
   end
-  # puts "finished handle migration files #{migration_files.length} #{cnt}"
+  puts "finished handle migration files #{migration_files.length} #{cnt}"
+
+  # check customized constraints
+  check_customized_constraints(model_classes)
+
   begin
     if $read_html
       read_html_file_ast(view_files)
@@ -176,6 +181,43 @@ def read_html_file_ast(view_files)
       end
     rescue
       # puts "file doesn't exist"
+    end
+  end
+end
+
+def is_db_field(field, file)
+  return (file.getColumns.key?(field)) || (file.getColumns.key?(field + "_id"))
+  # return true
+end
+
+def check_customized_constraints(model_classes)
+  model_classes.each do |key, file|
+    constraints = file.getConstraints().select { |k, v| k.include? "Customized_constraint_if" }
+    constraints.each do |k, v|
+      # check conditions of v
+      if v.cond.empty?
+        file.removeConstraintByKey(k)
+      end
+      v.cond.each do |c|
+        if !(is_db_field(c[0].source, file) && is_db_field(c[2].source, file))
+          puts file.getColumns.keys.to_s
+          puts c[0].source, is_db_field(c[0].source, file)
+          puts c[2].source, is_db_field(c[2].source, file)
+          puts v.src
+          file.removeConstraintByKey(k)
+        end
+      end
+    end
+  end
+
+  # After checking all customized constraints
+  model_classes.each do |key, file|
+    constraints = file.getConstraints().select { |k, v| k.include? "Customized_constraint_if" }
+    constraints.each do |k, v|
+      puts "==========================="
+      puts file.filename
+      puts v.src
+      puts "==========================="
     end
   end
 end

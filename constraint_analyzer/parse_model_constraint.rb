@@ -171,6 +171,61 @@ def parse_event_cmd(ast)
   ast = ast.jump(:do_block)
   if ast.children.length != 1
     puts "[Error] even do block can only have one transition " + ast.children.to_s
+    if $cur_class.getValidateFunction().include? funcname
+      parse_if_error_pattern(ast)
+    end
+  end
+end
+
+def check_condition(cond)
+  if cond.type.to_s == "binary" &&
+     cond[0].type.to_s == "vcall" &&
+     cond[2].type.to_s == "vcall"
+    # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }]
+    return true
+  end
+  return false
+end
+
+def check_if_error_field(ast)
+  conds = []
+  if (ast.type.to_s == "command_call" || ast.type.to_s == "call") && ast[0].source == "errors"
+    return true, []
+  end
+  if ast.type.to_s == "if" || ast.type.to_s == "if_mod"
+    # check conditions only contains fields
+    if !check_condition(ast[0])
+      # puts ast.source + "   Condition not OK"
+      return false, []
+    end
+    conds << ast[0]
+    # puts "check body---" + ast[1].type.to_s
+    # puts "check body---" + ast[1][0].source
+    ret = check_if_error_field(ast[1])
+    if ret[0]
+      conds = conds + ret[1]
+      return true, conds
+    end
+    ast[1].children.each do |child|
+      ret = check_if_error_field(child)
+      if ret[0]
+        conds = conds + ret[1]
+        return true, conds
+      end
+    end
+  end
+  return false, []
+end
+
+def parse_if_error_pattern(ast)
+  ast[2].children.each do |child|
+    ret = check_if_error_field(child)
+    if ret[0]
+      cs = Customized_constraint_if.new($cur_class.class_name, nil, Constraint::MODEL, nil, nil)
+      cs.src = ast.source
+      cs.cond = ret[1]
+      $cur_class.addConstraints([cs])
+    end
   end
   ast = ast.children[0][0]
   if ast[0].source == "transition"
@@ -678,6 +733,7 @@ def handle_validate(table, type, ast)
     ast.children.each do |c|
       if c.type.to_s == "symbol_literal"
         funcname = handle_symbol_literal_node(c)
+        $cur_class.addValidateFunction(funcname)
         con = Function_constraint.new(table, nil, type)
         con.funcname = funcname
         constraints << con
