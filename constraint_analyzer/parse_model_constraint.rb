@@ -118,8 +118,7 @@ def parse_model_constraint_file(ast)
       end
       constraint = Inclusion_constraint.new($cur_class.class_name, column, Constraint::MODEL)
       constraint.range = possible_values.uniq
-      puts constraint.to_string
-      puts "---------"
+      #puts constraint.to_string
       $cur_class.addConstraints([constraint])
     end
   end
@@ -291,6 +290,8 @@ def parse_before_save_constraint_function(ast)
   constraints = []
   constraints += parse_downcase_and_equal_constraint(ast)
   constraints += parse_builtin_assign(ast)
+  puts "----[Before save constraints]-----" + constraints.length.to_s
+  return constraints
 end
 
 def find_vars(ast)

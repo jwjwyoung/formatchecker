@@ -69,6 +69,7 @@ class Version_class
         end
       end
     }
+    puts "-----[Poly Constraint]---" + inclusions.length.to_s
   end
 
   def extract_constraints
