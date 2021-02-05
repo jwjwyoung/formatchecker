@@ -39,6 +39,7 @@ class Version_class
     belongs_to_polys = {}
     has_many_polys = {}
     has_many_polys.default = []
+    puts @activerecord_files.length.to_s + "==================="
     @activerecord_files.each do |key, file|
       if !key.nil?
         file.getHasManyAs().each do |as|
@@ -135,7 +136,7 @@ class Version_class
   def annotate_model_class
     not_active_files = []
     @files.values.each do |file|
-      if ["ActiveRecord::Base", "Spree::Base"].include? file.upper_class_name
+      if ["ActiveRecord::Base", "Spree::Base", "ApplicationRecord"].include? file.upper_class_name
         file.is_activerecord = true
       else
         not_active_files << file

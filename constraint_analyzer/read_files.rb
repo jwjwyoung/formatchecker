@@ -81,7 +81,7 @@ def read_constraint_files(application_dir = nil, version = "")
       file = open(filename)
       contents = file.readlines.reject { |l| /^\s*#/.match l }.join
       file.close
-      # puts "reach here true #{filename}" if filename.include?"app/models/wiki_page.rb"
+      # puts "*******reach here true #{filename}" if filename.include? "app/models/watcher.rb"
       ast = YARD::Parser::Ruby::RubyParser.parse(contents).root
       $cur_class = File_class.new(filename)
       $cur_class.ast = ast
@@ -97,7 +97,7 @@ def read_constraint_files(application_dir = nil, version = "")
       end
       # puts "add new class #{$cur_class.class_name} #{$cur_class.upper_class_name}"
     rescue => error
-      puts error
+      puts error.backtrace.join("\n")
       puts "failed filename: #{filename}"
     end
   end

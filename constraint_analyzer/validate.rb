@@ -83,12 +83,20 @@ class Length_constraint < Constraint
       minimum = dic["minimum"].source
       self.min_value = minimum
     end
-    if @range and eval(@range)
-      @range = eval(@range)
-      @min_value = @range.min
-      @max_value = @range.max
-      # puts "RANGE: #{@range} #{min_value} #{max_value}"
+    begin
+      if @range and eval(@range)
+        @range = eval(@range)
+        @min_value = @range.min
+        @max_value = @range.max
+        # puts "RANGE: #{@range} #{min_value} #{max_value}"
+      end
+    rescue => exception
+      puts "Fail to parse range %s" % (@range.to_s)
+      @min_value = nil
+      @max_value = nil
+      return false
     end
+
     if @max_value and @max_value != "nil" and @max_value.to_i
       @max_value = @max_value.to_i
     else
@@ -99,6 +107,7 @@ class Length_constraint < Constraint
     else
       @min_value = nil
     end
+    return true
   end
 
   def is_child_same(old_constraint)

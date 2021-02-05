@@ -1,4 +1,4 @@
-def parse_model_constraint_file(ast)
+def parse_model_constraint_file(ast, poly = false)
   if ast.type.to_s == "list"
     ast.children.each do |child|
       parse_model_constraint_file(child)
@@ -34,8 +34,29 @@ def parse_model_constraint_file(ast)
       parse_model_constraint_file(c3)
     end
   end
+
+  if ast.type.to_s == "vcall" && ast.source == "acts_as_watchable"
+    $cur_class.addHasManyAs("watchable")
+  end
+  # TODO: These are too narrow, needs to be fixed
+  if ast.type.to_s == "vcall" && ast.source == "acts_as_followable"
+    $cur_class.addHasManyAs("followable")
+  end
+  if ast.type.to_s == "vcall" && ast.source == "acts_as_follower"
+    $cur_class.addHasManyAs("follower")
+  end
+  if ast.type.to_s == "vcall" && ast.source == "acts_as_taggable"
+    $cur_class.addHasManyAs("taggable")
+  end
+
   if ast.type.to_s == "command"
     funcname = ast[0].source
+    if funcname == "with_options" && ast.children[1].source.start_with?("polymorphic")
+      do_block = ast.children[2].jump(:do_block)
+      do_block[1].each do |cmd|
+        parse_model_constraint_file(cmd, true)
+      end
+    end
     if funcname == "before_save"
       $cur_class.addBeforeSaveFcuntions(parse_before_saves(ast))
     end
@@ -50,7 +71,7 @@ def parse_model_constraint_file(ast)
         $cur_class.addForeignKey(key_field)
       end
     end
-    if funcname == "has_many" || funcname == "belongs_to"
+    if funcname == "has_many" || funcname == "belongs_to" || funcname == "has_one"
       columns = []
       dic = {}
       # puts "#{funcname} #{ast.type}"
@@ -73,6 +94,11 @@ def parse_model_constraint_file(ast)
         # puts "dict = #{dic} || columns = #{columns}"
         # puts ""
       end
+      if funcname == "has_one"
+        if dic.has_key? "as"
+          $cur_class.addHasManyAs(handle_symbol_literal_node(dic["as"]))
+        end
+      end
 
       if funcname == "has_many"
         columns.each do |column|
@@ -92,7 +118,7 @@ def parse_model_constraint_file(ast)
             #$cur_class.addConstraints(cs) if cs.length > 0
           end
         end
-        if dic.has_key? "polymorphic" and dic["polymorphic"].source == "true"
+        if (dic.has_key? "polymorphic" and dic["polymorphic"].source == "true") or poly
           if columns.length != 1
             puts "[Poly Error] Columns has length greater than 1, columns " + columns.to_s
           end
@@ -114,7 +140,7 @@ def parse_model_constraint_file(ast)
       # step into do block
       possible_values = rets[1]
       ast[2].children[0].each do |ast|
-        possible_values += parse_cmd_get_fields(ast)
+        # possible_values += parse_cmd_get_fields(ast)
       end
       constraint = Inclusion_constraint.new($cur_class.class_name, column, Constraint::MODEL)
       constraint.range = possible_values.uniq
@@ -666,8 +692,10 @@ def parse_validates(table, funcname, ast)
             if dic
               columns.each do |c|
                 constraint = Length_constraint.new(table, c, type)
-                constraint.parse(dic)
-                constraints << constraint
+                success_parse = constraint.parse(dic)
+                if success_parse
+                  constraints << constraint
+                end
               end
             end
           end
