@@ -155,6 +155,9 @@ def parse_model_constraint_file(ast, poly = false)
       cs = parse_before_save_constraint_function(ast)
       $cur_class.addConstraints(cs) if cs.length > 0
     end
+    if $cur_class.getValidateFunction().include? funcname
+      parse_if_error_pattern(ast)
+    end
   end
 
   if ast.type.to_s == "fcall" && ast[0].source == "before_save"
@@ -190,17 +193,6 @@ def parse_state_field(ast)
     column = "state"
   end
   return [column, possible_fields]
-end
-
-def parse_event_cmd(ast)
-  possible_fields = []
-  ast = ast.jump(:do_block)
-  if ast.children.length != 1
-    puts "[Error] even do block can only have one transition " + ast.children.to_s
-    if $cur_class.getValidateFunction().include? funcname
-      parse_if_error_pattern(ast)
-    end
-  end
 end
 
 def check_condition(cond)
@@ -252,6 +244,14 @@ def parse_if_error_pattern(ast)
       cs.cond = ret[1]
       $cur_class.addConstraints([cs])
     end
+  end
+end
+
+def parse_event_cmd(ast)
+  possible_fields = []
+  ast = ast.jump(:do_block)
+  if ast.children.length != 1
+    puts "[Error] even do block can only have one transition " + ast.children.to_
   end
   ast = ast.children[0][0]
   if ast[0].source == "transition"
