@@ -140,7 +140,7 @@ def parse_model_constraint_file(ast, poly = false)
       # step into do block
       possible_values = rets[1]
       ast[2].children[0].each do |ast|
-        # possible_values += parse_cmd_get_fields(ast)
+        possible_values += parse_cmd_get_fields(ast)
       end
       constraint = Inclusion_constraint.new($cur_class.class_name, column, Constraint::MODEL)
       constraint.range = possible_values.uniq

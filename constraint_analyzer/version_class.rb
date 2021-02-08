@@ -156,6 +156,35 @@ class Version_class
       end
     end
 
+    # extract inheritance constraints
+    inheritance = Hash.new([])
+    @files.values.each do |file|
+      if file.upper_class_name && file.class_name && file.upper_class_name != "ActiveRecord::Base" \
+        && file.upper_class_name != "ApplicationRecord"
+        inheritance[file.upper_class_name] = inheritance[file.upper_class_name] << file.class_name
+      end
+    end
+    inheritance.each { |key, value|
+      cs = Inclusion_constraint.new(key, "type", Constraint::MODEL, nil, nil)
+      cs.range = value
+      file = @files.values.detect { |f|
+        f.class_name == key || f.class_name == "Spree" + key
+      }
+      if !file.nil?
+        contain_type = false
+        file.getColumns.each do |key, column|
+          # puts "\t" + column.column_name if !column.column_name.nil?
+          if !column.column_name.nil? && column.column_name == "type"
+            contain_type = true
+          end
+        end
+        if contain_type
+          puts "Add inheritance inclusion constraints---" + key
+          file.addConstraints([cs])
+        end
+      end
+    }
+
     # extract the constraints from the active record file
     @activerecord_files = @files.select { |key, x| x.is_activerecord }
     # @activerecord_files.each do |k,v|
@@ -173,13 +202,13 @@ class Version_class
   end
 
   def print_columns
-    puts "---------------columns-----------------"
-    get_activerecord_files.each do |key, file|
-      puts "#{key} #{file.getColumns.length}"
-      file.getColumns.each do |key, column|
-        puts "\t#{column.column_name}"
-      end
-    end
+    # puts "---------------columns-----------------"
+    # get_activerecord_files.each do |key, file|
+    #   puts "#{key} #{file.getColumns.length}"
+    #   file.getColumns.each do |key, column|
+    #     puts "\t#{column.column_name}"
+    #   end
+    # end
   end
 
   def compare_custom_constriants(old_version)
