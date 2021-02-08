@@ -450,7 +450,7 @@ class Customized_constraint < Constraint
 end
 
 class Customized_constraint_if < Constraint
-  attr_accessor :src, :cond
+  attr_accessor :src, :cond, :fields
 end
 
 class HasMany_constraint < Constraint

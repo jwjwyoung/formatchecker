@@ -156,6 +156,9 @@ def parse_model_constraint_file(ast, poly = false)
       $cur_class.addConstraints(cs) if cs.length > 0
     end
     if $cur_class.getValidateFunction().include? funcname
+      # puts "-----------"
+      # puts ast.source
+      # puts "-----------"
       parse_if_error_pattern(ast)
     end
   end
@@ -196,52 +199,91 @@ def parse_state_field(ast)
 end
 
 def check_condition(cond)
-  if cond.type.to_s == "binary" &&
-     cond[0].type.to_s == "vcall" &&
-     cond[2].type.to_s == "vcall"
-    # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }]
-    return true
+  fields = []
+  if cond.type.to_s == "arg_paren" && cond.children[0].type.to_s == "string_literal"
+    return true, fields
   end
-  return false
+  if cond.type.to_s == "vcall"
+    fields << cond.source
+    return true, fields
+  end
+  if cond.type.to_s == "int"
+    return true, fields
+  end
+  if cond.type.to_s == "call" && cond[2].source == "include?" && cond[3][0][0].type.to_s == "string_literal"
+    fields << cond[0].source
+    return true, fields
+  end
+  # e = field.nil? or empty
+  # s = s || e
+  if cond.type.to_s == "call" &&
+     (cond[2].source == "nil?" || cond[2].source == "length" \
+       || cond[2].source == "size")
+    fields << cond[0].source
+    return true, fields
+  end
+  # lhs binop rhs
+  # lhs or rhs can be constant
+  lhs_ret = if cond.type.to_s == "binary"
+      lhs_ret = check_condition(cond[0])
+      rhs_ret = check_condition(cond[2])
+      if lhs_ret[0] && rhs_ret[0]
+        fields += lhs_ret[1] + rhs_ret[1]
+        return true, fields
+      end
+      # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }
+    end
+  return false, []
 end
 
 def check_if_error_field(ast)
   conds = []
+  fields = []
   if (ast.type.to_s == "command_call" || ast.type.to_s == "call") && ast[0].source == "errors"
-    return true, []
+    return true, [], []
   end
-  if ast.type.to_s == "if" || ast.type.to_s == "if_mod"
+  # puts ast.type.to_s
+  if ast.type.to_s == "if" || ast.type.to_s == "if_mod" || ast.type.to_s == "unless_mod"
     # check conditions only contains fields
-    if !check_condition(ast[0])
+    ret = check_condition(ast[0])
+    if !ret[0]
       # puts ast.source + "   Condition not OK"
-      return false, []
+      return false, [], []
     end
     conds << ast[0]
+    fields += ret[1]
     # puts "check body---" + ast[1].type.to_s
     # puts "check body---" + ast[1][0].source
     ret = check_if_error_field(ast[1])
     if ret[0]
       conds = conds + ret[1]
-      return true, conds
+      fields = fields + ret[2]
+      return true, conds, fields
     end
     ast[1].children.each do |child|
       ret = check_if_error_field(child)
       if ret[0]
         conds = conds + ret[1]
-        return true, conds
+        fields = fields + ret[2]
+        return true, conds, fields
       end
     end
   end
-  return false, []
+  return false, [], []
 end
 
 def parse_if_error_pattern(ast)
   ast[2].children.each do |child|
     ret = check_if_error_field(child)
     if ret[0]
-      cs = Customized_constraint_if.new($cur_class.class_name, nil, Constraint::MODEL, nil, nil)
+      cs = Customized_constraint_if.new($cur_class.class_name, Random.rand(10).to_s, Constraint::MODEL, nil, nil)
       cs.src = ast.source
+      if ret[1].length > 0
+        # puts ret[1].to_s
+        # puts "++++++++++++"
+      end
       cs.cond = ret[1]
+      cs.fields = ret[2]
       $cur_class.addConstraints([cs])
     end
   end
@@ -371,7 +413,7 @@ def parse_before_save_constraint_function(ast)
   constraints = []
   constraints += parse_downcase_and_equal_constraint(ast)
   constraints += parse_builtin_assign(ast)
-  puts "----[Before save constraints]-----" + constraints.length.to_s
+  # puts "----[Before save constraints]-----" + constraints.length.to_s
   return constraints
 end
 
