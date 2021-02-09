@@ -4,7 +4,7 @@ def load_validate_api
   open(validate_api).readlines.each do |line|
     $validate_apis << line.strip
   end
-  puts $validate_apis
+  # puts $validate_apis
 end
 
 def load_html_constraint_api
@@ -64,7 +64,7 @@ def derive_length_from_format(format)
       max_value = examples.map(&:length).max
     end
   rescue
-    puts "cannot parse regex: #{format}"
+    # puts "cannot parse regex: #{format}"
   end
 
   return min_value, max_value

@@ -23,8 +23,15 @@ end
 
 # use pg query to handle sql query string
 def parse_sql_string(sql)
+  # in mastodon, we have:
+  # "CREATE INDEX hashtag_search_index ON tags USING gin(to_tsvector(\\'simple\\', tags.name));"
+  sql.gsub!("\\'", "'")
   type = ""
-  sql_ast = PgQuery.parse(sql)
+  begin
+    sql_ast = PgQuery.parse(sql)
+  rescue PgQuery::ParseError
+    return
+  end
   tree = sql_ast.tree[0]["RawStmt"]["stmt"]
   table_name = nil
   columns = []
@@ -61,10 +68,10 @@ def handle_cross_line_string(sql)
   if sql.start_with? "<"
     sql = sql.lines[1...-1].join
     begin
-      #puts "sql : #{sql}"
+      # puts "sql : #{sql}"
       PgQuery.parse(sql)
     rescue
-      #puts "Illegal query reset to null"
+      # puts "Illegal query reset to null"
       sql = ""
     end
     return sql

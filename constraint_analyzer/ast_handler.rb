@@ -74,8 +74,11 @@ end
 def handle_string_literal_node(ast)
   return unless ast
   if ast&.type.to_s == "string_literal"
-    column = ast[0].source
-    return column
+    if ast[0].type == :tstring_content
+      ast[0][0].source
+    else
+      ast[0].source
+    end
   end
 end
 

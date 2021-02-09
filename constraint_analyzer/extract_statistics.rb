@@ -1,31 +1,31 @@
-require 'rubygems'
-require 'write_xlsx'
-require 'date'
-require 'yaml'
+require "rubygems"
+require "write_xlsx"
+require "date"
+require "yaml"
 # Create a new Excel workbook
 def write_to_sheet(worksheet, api_data, format)
-  col = row = 0
   # puts "api_data #{api_data.size}"
-  for row in 0...api_data.size
+  (0...api_data.size).each do |row|
     contents = api_data[row]
     # puts "contents : #{contents.size}"
-    for col in 0...contents.length
+    (0...contents.length).each do |col|
       # puts "contents[col #{contents[col]}"
       worksheet.write(row, col, contents[col], format)
     end
   end
 end
+
 def count_average_commits_between_releases(directory)
   tags = `cd #{directory}; git tag -l --sort version:refname`
   app_name = directory.split("/")[-1]
-  commits = tags.lines.reverse.map { |x| x.strip }
+  commits = tags.lines.reverse.map(&:strip)
   if commits&.length > 10
     f = open("../log/#{app_name}_commits.txt", "w")
     v1 = commits[0]
     total = 0
     cnt = 0
     sizes = []
-    for i in 1...commits.length
+    (1...commits.length).each do |i|
       v2 = commits[i]
       csize = `cd #{directory}; git log --pretty=oneline ^#{v2} #{v1}`.lines.size
       f.write("#{v2} #{v1} #{csize}\n")
@@ -44,57 +44,61 @@ end
 def median(array)
   ascend = array.sort
   length = array.length
-  if length % 2 != 0
-    return ascend[(length + 1) / 2.0]
+  if length.odd?
+    ascend[(length + 1) / 2.0]
   else
-    return (ascend[length / 2.0] + ascend[(length + 2) / 2.0]) / 2.0
+    (ascend[length / 2.0] + ascend[(length + 2) / 2.0]) / 2.0
   end
 end
 
-def extract_commits(directory, interval = 5, tag_unit = true)
+def extract_commits(directory, interval = nil, tag_unit = true)
   # reset to the most up to date commit
-  puts "cd #{directory}; git checkout -f master"
-  `cd #{directory}; git checkout -f master`
-  puts "directory #{directory}"
+  `git -C '#{directory}' checkout -fq master`
 
-  tags = `cd #{directory}; git for-each-ref --sort=taggerdate --format '%(refname)' refs/tags`
-  app_version_size = {"discourse"=>"316", "lobsters"=>"19", "gitlabhq"=>"1040", "redmine"=>"159", "spree"=>"261", "ror_ecommerce"=>"31", "fulcrum"=>"7", "tracks"=>"26", "onebody"=>"39", "diaspora"=>"86", "falling-fruit"=>"12", "openstreetmap-website"=>"95"}
-  app_name = directory.split("/")[-1]
-  version_size = app_version_size[app_name].to_i
-  if tag_unit
-    commits = tags.lines.reverse.map { |x| x.strip }
+  tags = `git -C '#{directory}' for-each-ref --format '%(refname)' refs/tags | ./sort-versions.py`
+  unless $CHILD_STATUS.success?
+    raise "command for getting tags failed"
   end
-  #puts "commits.length: #{commits.length}"
+
+  # app_version_size = { "discourse" => "316", "lobsters" => "19", "gitlabhq" => "1040", "redmine" => "159",
+  #                      "spree" => "261", "ror_ecommerce" => "31", "fulcrum" => "7", "tracks" => "26",
+  #                      "onebody" => "39", "diaspora" => "86", "falling-fruit" => "12",
+  #                      "openstreetmap-website" => "95" }
+  # app_name = directory.split("/")[-1]
+  # version_size = app_version_size[app_name].to_i
+  commits = tags.lines.reverse.map(&:strip) if tag_unit
   if !commits || commits.length < 10
-    commits = `python commits.py #{directory}`
-    commits = commits.lines
-    interval = 100
+    commits = `git -C '#{directory}' log --format=format:%H`.lines
+    # default interval to 100
+    interval = interval.nil? ? 100 : interval
   else
     interval = 1
   end
-  puts "commits.length: #{commits.length}"
   versions = []
   i = 0
   commits.each do |commit|
     if i % interval == 0
       version = Version_class.new(directory, commit)
-      #version.build
+      # version.build
       versions << version if version
     end
     i += 1
   end
-  versions = versions.reverse[0...version_size].reverse
-  puts "versions.length: #{versions.length}"
+  # For applications not in `app_version_size.keys`, it's `version_size` is zero,
+  # so don't chop the versions here.
+  # versions = versions.reverse[0...version_size].reverse unless version_size.zero?
+  #versions[0..300]
   return versions
 end
-def get_tags_before_certain_date(commit,directory)
-  tags = `cd #{directory}; git for-each-ref  --sort version:refname  --format="%(refname:short) | %(creatordate)" refs/tags/*`
-  tags = tags&.lines.map{|x| x.strip.split("|")}
-  tags = tags&.map{|a1, a2| [a1, Date.parse(a2).to_date]}
+
+def get_tags_before_certain_date(commit, directory)
+  tags = `cd #{directory}; git for-each-ref --sort version:refname --format="%(refname:short) | %(creatordate)" refs/tags/*`
+  tags = tags.lines.map { |x| x.strip.split("|") }
+  tags = tags&.map { |a1, a2| [a1, Date.parse(a2).to_date] }
   commit_time_str = `cd #{directory};  git show -s --format=%ci #{commit}`
   commit_time = Date.parse(commit_time_str).to_date
   puts "tags #{tags.size}"
-  tags.select{|a1, a2| a2 <= commit_time}.map{|a1, a2| a1}
+  tags.select { |_a1, a2| a2 <= commit_time }.map { |a1, _a2| a1 }
 end
 
 def current_version_constraints_num(application_dir, commit = "master")
@@ -102,13 +106,11 @@ def current_version_constraints_num(application_dir, commit = "master")
   version = Version_class.new(application_dir, commit)
   version.build
   version.column_stats
-  total_constraints = version.activerecord_files.map { |k, v| v.getConstraints.map { |k1, v1| v1 } }.reduce(:+)
-  tables = total_constraints.select { |v| v.type == Constraint::DB }.group_by { |v| v.table }
+  total_constraints = version.activerecord_files.map { |_k, v| v.getConstraints.map { |_k1, v1| v1 } }.reduce(:+)
+  tables = total_constraints.select { |v| v.type == Constraint::DB }.group_by(&:table)
   tables.each do |table, tables|
     puts "table #{table} #{tables.size}"
-    if tables.size > 0
-      puts "#{tables[0].to_string}"
-    end
+    puts tables[0].to_string.to_s unless tables.empty?
   end
   commit_hash = `cd #{application_dir}; git rev-parse HEAD`
   puts "commit_hash: #{commit_hash}"
@@ -131,7 +133,7 @@ def first_last_version_comparison_on_num(application_dir)
   `cd #{application_dir}; git stash; git checkout -f master`
   versions = extract_commits(application_dir, 1, false)
   app_name = application_dir.split("/")[-1]
-  
+
   if versions.length <= 0
     puts "No versions"
     return
@@ -160,7 +162,7 @@ def api_breakdown(application_dir)
   # `cd #{application_dir}; git stash; git pull; git checkout master`
   `cd #{application_dir}; git stash;  git checkout -f master`
   version = Version_class.new(application_dir, commit)
-  
+
   # versions = extract_commits(application_dir, 1, false)
   # if versions.length <= 0
   #   puts "No versions"
@@ -178,7 +180,7 @@ def api_breakdown(application_dir)
   model_dic = api_type_breakdown(model_constraints)
   html_dic = api_type_breakdown(html_constraints)
   # output the result to log file
-  commit_hash =  `cd #{application_dir}; git rev-parse HEAD`
+  commit_hash = `cd #{application_dir}; git rev-parse HEAD`
   output.write("commit_hash #{commit_hash}")
   output.write("=======START BREAKDOWN of API\n")
   output.write("constraint_type #db #model #html\n")
@@ -211,16 +213,12 @@ def api_type_breakdown(constraints)
   constraint_classes.each do |c|
     num_dic[c] = 0
   end
-  if constraints
-    constraints.each do |c|
-      c_class = c.class
-      if not num_dic[c_class]
-        num_dic[c_class] = 1
-      end
-      num_dic[c_class] += 1
-    end
+  constraints&.each do |c|
+    c_class = c.class
+    num_dic[c_class] = 1 unless num_dic[c_class]
+    num_dic[c_class] += 1
   end
-  return num_dic
+  num_dic
 end
 
 def total_number_comparison(application_dir, commit = "master")
@@ -234,9 +232,10 @@ def traverse_constraints_code_curve(application_dir, interval, tag_unit = true)
   versions = extract_commits(application_dir, interval, tag_unit)
   puts "versions.length: #{versions.length}"
   return if versions.length <= 0
+
   app_name = application_dir.split("/")[-1]
   output = open("../log/output_loc_constraints_#{app_name}.log", "w")
-  for i in 0...versions.length
+  (0...versions.length).each do |i|
     version = versions[i]
     version.build
     content = "#{version.loc} #{version.total_constraints_num} #{version.db_constraints_num} #{version.model_constraints_num} #{version.html_constraints_num}\n"
@@ -244,19 +243,21 @@ def traverse_constraints_code_curve(application_dir, interval, tag_unit = true)
   end
   output.close
 end
+
 def traverse_for_custom_validation(application_dir, interval, tag_unit = true)
   $read_db = false
   $read_html = false
   versions = extract_commits(application_dir, interval, tag_unit)
   puts "versions.length: #{versions.length}"
   return if versions.length <= 0
+
   app_name = application_dir.split("/")[-1]
   versions[0].build
   output_customchange = open("../log/customchange_#{app_name}.log", "w")
   c1 = c2 = c3 = c4 = 0
   s1 = s2 = s3 = s4 = 0
   results = []
-  for i in 1...versions.length
+  (1...versions.length).each do |i|
     new_version = versions[i - 1]
     version = versions[i]
     version.build
@@ -264,13 +265,13 @@ def traverse_for_custom_validation(application_dir, interval, tag_unit = true)
     s1 += cf.size
     s2 += af.size
     s3 += df.size
-    results += cf.map{|k,v| [version.commit, new_version.commit, v[0].source, v[1].source]}
-    results += af.map{|k,v| [version.commit, new_version.commit, "", v.source]}
-    results += df.map{|k,v| [version.commit, new_version.commit, v.source, ""]}
-    c1 += 1 if cf.size > 0
-    c2 += 1 if af.size > 0
-    c3 += 1 if df.size > 0
-    c4 += 1 if cf.size > 0 || af.size > 0 || df.size > 0
+    results += cf.map { |_k, v| [version.commit, new_version.commit, v[0].source, v[1].source] }
+    results += af.map { |_k, v| [version.commit, new_version.commit, "", v.source] }
+    results += df.map { |_k, v| [version.commit, new_version.commit, v.source, ""] }
+    c1 += 1 unless cf.empty?
+    c2 += 1 unless af.empty?
+    c3 += 1 unless df.empty?
+    c4 += 1 if !cf.empty? || !af.empty? || !df.empty?
   end
   s4 = s1 + s2 + s3
   contents = "#{versions.length} #{c1} #{c2} #{c3} #{c4}\n"
@@ -280,61 +281,44 @@ def traverse_for_custom_validation(application_dir, interval, tag_unit = true)
   output_customchange.close
 
   workbook = WriteXLSX.new("../output/compare-custom-#{app_name}.xlsx")
-  format = workbook.add_format 
+  format = workbook.add_format
   worksheet = workbook.add_worksheet("compare")
-  format.set_align('left')
+  format.set_align("left")
   write_to_sheet(worksheet, results, format)
   workbook.close
 end
+
 def traverse_all_versions(application_dir, interval, tag_unit = true)
   versions = extract_commits(application_dir, interval, tag_unit)
   puts "versions.length: #{versions.length}"
   return if versions.length <= 0
+
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
-  if not File.exist? version_his_folder
-    `mkdir #{version_his_folder}`
-  end
-  yaml_version = version_his_folder+versions[0].commit.gsub("/","-")
-  if File.exist?(yaml_version)
-    versions[0] = YAML.load(File.read(yaml_version))
-  else
-    versions[0].build
-    versions[0].clean
-    File.open(yaml_version, 'w') { |f| f.write(YAML.dump(versions[0])) }
-  end
+  Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
+  build_version(version_his_folder, versions[0])
+  versions[0] = load_version(version_his_folder, versions[0])
   output = open("../log/output_#{app_name}.log", "w")
   output_diff_codechange = open("../log/codechange_#{app_name}.log", "w")
   log_dir = "../log/#{app_name}_log/"
   version = versions[0]
   content = "#{version.loc} #{version.total_constraints_num} #{version.db_constraints_num} #{version.model_constraints_num} #{version.html_constraints_num}\n"
   output_diff_codechange.write(content)
-  if not File.exist? log_dir
-    `mkdir #{log_dir}`
-  end
-  output_html_constraints = open("#{log_dir}/html_constraints.log", "w")
+  Dir.mkdir(log_dir) unless File.exist? log_dir
+  output_html_constraints = File.open("#{log_dir}/html_constraints.log", "w")
   cnt = 0
   sum1 = sum2 = sum3 = sum4 = sum5 = sum6 = sum7 = sum8 = sumh1 = sumh2 = sumh3 = sumh4 = 0
   count1 = count2 = count3 = count4 = count5 = count6 = count7 = count8 = counth1 = counth2 = counth3 = counth4 = 0
   start = Time.now
-  for i in 1...versions.length
+  (1...versions.length).each do |i|
     puts "=============#{i} out of #{versions.length}============="
     new_version = versions[i - 1]
-    version = versions[i]
-    yaml_version = version_his_folder+version.commit.gsub("/","-")
-    if File.exist?(yaml_version)
-      version = versions[i] = YAML.load(File.read(yaml_version))
-    else
-      version.build
-      version.clean
-      File.open(yaml_version, 'w') { |f| f.write(YAML.dump(version)) }
-    end
+    build_version(version_his_folder, versions[i])
+    versions[i] = load_version(version_his_folder, versions[i])
     puts "Duration of reading: #{Time.now - start}"
     ncs, ccs, eccs, nccs, nmhcs = new_version.compare_constraints(version)
     # nmhcs => not matched html constraints with previous html/validate constraints
-    if ncs.length > 0 or ccs.length > 0
-      cnt += 1
-    end
+    cnt += 1 if !ncs.empty? || !ccs.empty?
     file, insertion, deletion = code_change(application_dir, new_version.commit, version.commit)
     model_ncs = ncs.select { |x| x.type == Constraint::MODEL }
     db_ncs = ncs.select { |x| x.type == Constraint::DB }
@@ -407,18 +391,17 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
   versions = extract_commits(application_dir, interval, tag_unit)
   puts "versions.length: #{versions.length}"
   return if versions.length <= 0
+
   app_name = application_dir.split("/")[-1]
   version_his_folder = "../log/vhf_#{app_name}/"
-  if not File.exist? version_his_folder
-    `mkdir #{version_his_folder}`
-  end
-  yaml_version = version_his_folder+versions[0].commit.gsub("/","-")
+  Dir.mkdir(version_his_folder) unless File.exist? version_his_folder
+  yaml_version = version_his_folder + versions[0].commit.gsub("/", "-")
   if File.exist?(yaml_version)
-    versions[0] = YAML.load(File.read(yaml_version))
+    versions[0] = YAML.safe_load(File.read(yaml_version))
   else
     versions[0].build
     versions[0].clean
-    File.open(yaml_version, 'w') { |f| f.write(YAML.dump(versions[0])) }
+    File.open(yaml_version, "w") { |f| f.write(YAML.dump(versions[0])) }
   end
   output = open("../log/columnsizecomp_#{app_name}.log", "w")
   version = versions[0]
@@ -428,22 +411,22 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
   version.activerecord_files.each do |key, file|
     final_results[key] = file.getColumnsLength
   end
-  g_as_s = [] #gitlab application setting table size
+  g_as_s = [] # gitlab application setting table size
   as_name = "User"
-  if as_size = version.get_all_table_column_size[as_name]
+  if (as_size = version.get_all_table_column_size[as_name])
     g_as_s << as_size
   end
-  for i in 1...versions.length
+  (1...versions.length).each do |i|
     puts "=============#{i} out of #{versions.length}============="
     new_version = versions[i - 1]
     version = versions[i]
-    yaml_version = version_his_folder+version.commit.gsub("/","-")
+    yaml_version = version_his_folder + version.commit.gsub("/", "-")
     if File.exist?(yaml_version)
-      version = versions[i] = YAML.load(File.read(yaml_version))
+      version = versions[i] = YAML.safe_load(File.read(yaml_version))
     else
       version.build
       version.clean
-      File.open(yaml_version, 'w') { |f| f.write(YAML.dump(version)) }
+      File.open(yaml_version, "w") { |f| f.write(YAML.dump(version)) }
     end
     puts "Duration of reading: #{Time.now - start}"
     results = new_version.get_table_original_column_size(version)
@@ -453,7 +436,7 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
         first_results[key] = file.getColumnsLength
       end
     end
-    if as_size = version.get_all_table_column_size[as_name]
+    if (as_size = version.get_all_table_column_size[as_name])
       g_as_s << as_size
     end
   end
@@ -461,11 +444,11 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
   tables = []
   puts "final_results: #{final_results.size}"
   final_results.each do |key, size|
-    if ori_size = first_results[key]
-      growth = size - ori_size
-      growths << growth
-      tables << key
-    end
+    next unless (ori_size = first_results[key])
+
+    growth = size - ori_size
+    growths << growth
+    tables << key
   end
   puts "growths: #{growths.size}"
   output.write(growths.join(" "))
@@ -473,10 +456,10 @@ def extract_table_size_comparison(application_dir, interval, tag_unit = true)
   output.write(tables.join(" "))
   output.write("\n")
   output.write("max min average\n")
-  average = 'NULL'
-  average = growths.reduce(:+) * 1.0 / growths.size if growths.size > 0
+  average = "NULL"
+  average = growths.reduce(:+) * 1.0 / growths.size unless growths.empty?
   output.write("#{growths.max} #{growths.min} #{average}\n")
-  output.write("#{g_as_s.join(" ")}\n")
+  output.write("#{g_as_s.join(' ')}\n")
   output.write("#{g_as_s.size}\n")
   output.close
 end
@@ -485,7 +468,8 @@ def find_all_mismatch(application_dir, interval)
   puts "interval: #{interval.class.name}"
   versions = extract_commits(application_dir, interval)
   return if versions.length <= 0
-  for v in versions
+
+  versions.each do |v|
     find_mismatch_oneversion(application_dir, v.commit)
   end
 end
@@ -498,13 +482,13 @@ def find_mismatch_oneversion(directory, commit = "master")
 end
 
 def dump_constraints(application_dir, dump_filename, commit)
-  commit = "master" if !commit
+  commit ||= "master"
   `cd #{application_dir}; git checkout -f #{commit}`
   version = Version_class.new(application_dir, commit)
   version.build
   constraints = version.get_model_constraints
 
-  File.open(dump_filename, 'wb') {|f| f.write(Marshal.dump(constraints))}
+  File.open(dump_filename, "wb") { |f| f.write(Marshal.dump(constraints)) }
 end
 
 def count_non_destroy(directory, commit = "master")
@@ -521,4 +505,3 @@ def count_non_destroy(directory, commit = "master")
   output.close
   puts "non_destroy_assocs #{nda.size} cwcf: #{cwcf.size} #{version.activerecord_files.size}"
 end
-

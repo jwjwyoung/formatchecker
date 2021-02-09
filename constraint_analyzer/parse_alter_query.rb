@@ -4,7 +4,7 @@ def parse_alter_query(sql_string)
   l_sql_string = sql_string.downcase
   l_sql_string = l_sql_string.gsub("`", "")
   if l_sql_string["alter table"]
-    puts "Alter query"
+    # puts "Alter query"
     code = ""
     strings = l_sql_string.split(" ")
     table = strings[2]
@@ -69,7 +69,7 @@ def parse_alter_query(sql_string)
       code = "change_column :#{table}, :#{column}, #{type}"
     end
 
-    puts "code: #{code}"
+    # puts "code: #{code}"
     begin
       ast = YARD::Parser::Ruby::RubyParser.parse(code).root
       return ast

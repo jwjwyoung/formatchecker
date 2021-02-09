@@ -1,17 +1,22 @@
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_sql.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/validate.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_model_constraint.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_model_metadata.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_controller_file.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_html_constraint.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_db_constraint.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/parse_alter_query.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/read_files.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/class_class.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/helper.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/version_class.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/extract_statistics.rb")
-require File.join(File.expand_path(File.dirname(__FILE__)), "../constraint_analyzer/ast_handler.rb")
+require_relative "./parse_sql.rb"
+require_relative "./validate.rb"
+require_relative "./parse_model_constraint.rb"
+require_relative "./parse_model_metadata.rb"
+require_relative "./parse_controller_file.rb"
+require_relative "./parse_html_constraint.rb"
+require_relative "./parse_db_constraint.rb"
+require_relative "./parse_alter_query.rb"
+require_relative "./read_files.rb"
+require_relative "./class_class.rb"
+require_relative "./helper.rb"
+require_relative "./version_class.rb"
+require_relative "./extract_statistics.rb"
+require_relative "./ast_handler.rb"
+require_relative "./traverse_db_schema.rb"
+require_relative "./parse_concerns.rb"
+require_relative "./check_pattern.rb"
+# require "/Users/junwenyang/Research/query_constraint_analyzer/query_parser_with_sql.rb"
+# require "/Users/junwenyang/Research/query_constraint_analyzer/load.rb"
 require "optparse"
 require "yard"
 require "active_support"
@@ -19,14 +24,13 @@ require "active_support/inflector"
 require "active_support/core_ext/string"
 require "regexp-examples"
 load_validate_api # load the model api
-load_html_constraint_api #load the html api
+load_html_constraint_api # load the html api
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: main.rb -a APP_DIR [options]"
 
   opts.on("-a", "--app app", "please specify application dir") do |v|
     options[:app] = v
-    puts "v #{v}"
   end
   opts.on("-c", "--commit commit", "please specify which commit for parse single version (default is master)") do |v|
     options[:commit] = v
@@ -34,76 +38,87 @@ OptionParser.new do |opts|
   opts.on("-i", "--interval interval", "please specify interval") do |v|
     options[:interval] = v.to_i
   end
-  opts.on("-t", "--tva", "whether to traverse all") do |v|
+  opts.on("-t", "--tva", "whether to traverse all") do |_v|
     options[:tva] = true
     puts "will travese_all_versions"
   end
-  opts.on("-s", "--single", "whether to parse single version") do |v|
+  opts.on("-s", "--single", "whether to parse single version") do |_v|
     options[:single] = true
   end
-  opts.on("-m", "--all_mismatch", "please specify whether you want to find all versions' mismatch") do |v|
+  opts.on("-m", "--all_mismatch", "please specify whether you want to find all versions' mismatch") do |_v|
     options[:mismatch] = true
   end
-  opts.on("-l", "--latest-version", "please specify that you want to get the current versions breakdown") do |v|
+  opts.on("-l", "--latest-version", "please specify that you want to get the current versions breakdown") do |_v|
     options[:latest] = true
   end
-  opts.on("--first-last-num", "please specify that you want to compare the first and last verison constraint num") do |v|
+  opts.on("--first-last-num", "please specify that you want to compare the first and last verison constraint num") do |_v|
     options[:fln] = true
   end
-  opts.on("--commit-unit", "please specify whether using commit as unit") do |v|
+  opts.on("--commit-unit", "please specify whether using commit as unit") do |_v|
     options[:commit_unit] = true
   end
-  opts.on("--api-breakdown", "please specify whether to get the API breakdown") do |v|
+  opts.on("--api-breakdown", "please specify whether to get the API breakdown") do |_v|
     options[:api_breakdown] = true
   end
-  opts.on("--custom-error-msg", "please specify whether to get custom error messages") do |v|
+  opts.on("--custom-error-msg", "please specify whether to get custom error messages") do |_v|
     options[:custom_error_msg] = true
   end
-  opts.on("--curve", "please specify whether you want the curve of # constraints # loc") do |v|
+  opts.on("--curve", "please specify whether you want the curve of # constraints # loc") do |_v|
     options[:curve] = true
   end
-  opts.on("--pvf", "please specify whether you want to print the validation functions") do |v|
+  opts.on("--pvf", "please specify whether you want to print the validation functions") do |_v|
     options[:pvf] = true
   end
-  opts.on("--commit-hash", "please specify whether you want to get the commit hash") do |v|
+  opts.on("--commit-hash", "please specify whether you want to get the commit hash") do |_v|
     options[:commit_hash] = true
   end
-  opts.on("--count-commits", "please specify whether you want to count the average commits") do |v|
+  opts.on("--count-commits", "please specify whether you want to count the average commits") do |_v|
     options[:count_commits] = true
   end
-  opts.on("--count-destory", "please specify whether you want to count the destroy") do |v|
+  opts.on("--count-destory", "please specify whether you want to count the destroy") do |_v|
     options[:destroy] = true
   end
-  opts.on("--custom-change", "please specify whether you want to check the custom function") do |v|
+  opts.on("--custom-change", "please specify whether you want to check the custom function") do |_v|
     options[:custom_change] = true
   end
-  opts.on("--if-checking", "please specify whether you want to check the custom function") do |v|
+  opts.on("--if-checking", "please specify whether you want to check the custom function") do |_v|
     options[:if_checking] = true
   end
-  opts.on("--compare-column-size", "please specify whether you want to compare the column size") do |v|
+  opts.on("--compare-column-size", "please specify whether you want to compare the column size") do |_v|
     options[:compare_column_size] = true
   end
   opts.on("--dump-constraints filename", "please specify which file to dump all constraints") do |v|
     options[:dump_constraints] = true
     options[:dump_filename] = v
   end
+  opts.on("--tschema", "traverse DB schema") do |_|
+    options[:tschema] = true
+  end
+  opts.on("--check", "check errors") do |_|
+    options[:check] = true
+  end
+  opts.on("--cvers version", "which version to check") do |v|
+    options[:check_vers] = v
+  end
+  opts.on("--column Table.column", "which column to check") do |v|
+    tab, col = v.split ".", 2
+    if tab && col
+      options[:check_tab] = tab
+      options[:check_col] = col
+    end
+  end
 end.parse!
 
 $read_html = true
 $read_db = true
+$read_constraints = true
 
-if !options[:app]
-  abort("Error: you must specify an application directory with the -a/--app option")
-end
+abort("Error: you must specify an application directory with the -a/--app option") unless options[:app]
 
 application_dir = options[:app]
-puts "application_dir #{application_dir}"
 
-interval = 1
-if options[:interval]
-  interval = options[:interval].to_i
-end
-if options[:tva] and interval
+interval = options[:interval] ? options[:interval].to_i : 1
+if options[:tva] && interval
   $read_html = false
   puts "travese_all_versions start options[:commit_unit] #{options[:commit_unit]}"
   if options[:commit_unit]
@@ -113,11 +128,19 @@ if options[:tva] and interval
   end
 end
 
-if options[:compare_column_size] and interval
-  extract_table_size_comparison(application_dir, interval)
+if options[:check]
+  check_code(application_dir, options[:check_vers] || "master", options[:check_tab], options[:check_col])
 end
 
-if options[:custom_change] and interval
+if options[:tschema]
+  $read_html = false
+  $read_constraints = false
+  traverse_all_for_db_schema(application_dir, options[:interval])
+end
+
+extract_table_size_comparison(application_dir, interval) if options[:compare_column_size] && interval
+
+if options[:custom_change] && interval
   puts "traverse to see custom change  options[:commit_unit] #{options[:commit_unit]}"
   if options[:commit_unit]
     traverse_for_custom_validation(application_dir, interval, false)
@@ -134,25 +157,17 @@ if options[:single]
   end
 end
 
-if options[:dump_constraints] and options[:dump_filename]
+if options[:dump_constraints] && options[:dump_filename]
   dump_constraints(options[:app], options[:dump_filename], options[:commit])
 end
 if options[:mismatch]
   puts "interval parse: #{interval.class.name}"
   find_all_mismatch(options[:app], interval)
 end
-if options[:latest]
-  current_version_constraints_num(application_dir)
-end
-if options[:fln]
-  first_last_version_comparison_on_num(application_dir)
-end
-if options[:api_breakdown]
-  api_breakdown(application_dir)
-end
-if options[:custom_error_msg]
-  custom_error_msg_info(application_dir)
-end
+current_version_constraints_num(application_dir) if options[:latest]
+first_last_version_comparison_on_num(application_dir) if options[:fln]
+api_breakdown(application_dir) if options[:api_breakdown]
+custom_error_msg_info(application_dir) if options[:custom_error_msg]
 
 if options[:curve]
   interval = 100
@@ -165,17 +180,11 @@ if options[:pvf]
   print_validate_functions(application_dir)
 end
 
-if options[:commit_hash]
-  puts `cd #{application_dir}; git rev-parse HEAD`
-end
+puts `cd #{application_dir}; git rev-parse HEAD` if options[:commit_hash]
 
-if options[:count_commits]
-  count_average_commits_between_releases(application_dir)
-end
+count_average_commits_between_releases(application_dir) if options[:count_commits]
 
-if options[:destroy]
-  count_non_destroy(application_dir)
-end
+count_non_destroy(application_dir) if options[:destroy]
 if options[:if_checking]
   $read_html = false
   $read_db = true

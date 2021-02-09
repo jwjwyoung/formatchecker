@@ -1,0 +1,49 @@
+# https://docs.rubocop.org/rubocop/configuration.html
+
+AllCops:
+  TargetRubyVersion: 2.7
+
+Metrics:
+  Enabled: false
+
+Lint/ShadowingOuterLocalVariable:
+  Enabled: false
+
+Lint/SuppressedException:
+  Enabled: false
+
+Lint/UnusedMethodArgument:
+  AutoCorrect: false
+
+Lint/UnusedBlockArgument:
+  AutoCorrect: false
+
+Naming:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Style/AsciiComments:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  EnforcedStyle: never
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+
+Style/Documentation:
+  Enabled: false
+
+Style/GlobalVars:
+  Enabled: false
+
+Style/NumericPredicate:
+  Enabled: false
+
+Style/Next:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
