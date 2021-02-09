@@ -1,3 +1,5 @@
+$cnt = 0
+
 def parse_model_constraint_file(ast, poly = false)
   if ast.type.to_s == "list"
     ast.children.each do |child|
@@ -156,9 +158,6 @@ def parse_model_constraint_file(ast, poly = false)
       $cur_class.addConstraints(cs) if cs.length > 0
     end
     if $cur_class.getValidateFunction().include? funcname
-      puts "-----------"
-      puts ast.source
-      puts "-----------"
       parse_if_error_pattern(ast)
     end
   end
@@ -170,11 +169,11 @@ def parse_model_constraint_file(ast, poly = false)
     # end
     # step into do block
     ast[2].children[0].each do |child|
-      if child[0].source == "self" &&
-         child[1].source == "." &&
-         child[2].type.to_s == "ident"
-        $cur_class.addBeforeSaveFcuntions([child[2].source])
-      end
+      # if child[0].source == "self" &&
+      #    child[1].source == "." &&
+      #    child[2].type.to_s == "ident"
+      #   $cur_class.addBeforeSaveFcuntions([child[2].source])
+      # end
     end
   end
 end
@@ -200,6 +199,23 @@ end
 
 def check_condition(cond)
   fields = []
+  # puts "------"
+  # puts cond.type.to_s
+  # puts cond.source
+  # puts cond.children.to_s
+  # puts "------"
+  if cond.type.to_s == "string_literal"
+    return true, fields
+  end
+  if cond.type.to_s == "var_ref" && cond.source.upcase == cond.source
+    return true, fields
+  end
+  if cond.type.to_s == "string_content" \
+    || cond.type.to_s == "ident" \
+    || cond.type.to_s == "int" \
+    || cond.type.to_s == "const_path_ref"
+    return true, fields
+  end
   if cond.type.to_s == "arg_paren" && cond.children[0].type.to_s == "string_literal"
     return true, fields
   end
@@ -207,17 +223,31 @@ def check_condition(cond)
     fields << cond.source
     return true, fields
   end
-  if cond.type.to_s == "int"
+  # e = field.nil? or empty
+  # s = s || e
+  if cond.type.to_s == "call" &&
+     (["nil?", "length", "none?", "size", "present?",
+       "empty?", "blank?", "any?", "strip", "count"].include? cond[2].source)
+    tokens = cond[0].source.split(".")
+    tokens.each do |token|
+      if token != "self"
+        fields << token.split("@")[-1]
+      end
+    end
     return true, fields
   end
+
   if cond.type.to_s == "call" &&
-     (cond[2].source == "include?" || cond[2].source == "end_with?") &&
-     cond[3][0][0].type.to_s == "string_literal"
+     ((cond[2].source.start_with?("include?")) ||
+      (cond[2].source.start_with? ("end_with?")) ||
+      (cond[2].source.start_with? ("ends_with?")) ||
+      (cond[2].source == "count") && cond[3][0][0].type.to_s == "string_literal")
     if cond[0].source[-1] == "&"
       field = cond[0].source[0..-1]
     else
       field = cond[0].source
     end
+    field = field.split(".")[-1]
     fields << field
     return true, fields
   end
@@ -226,13 +256,9 @@ def check_condition(cond)
     fields << cond[1].source
     return true, fields
   end
-  # e = field.nil? or empty
-  # s = s || e
-  if cond.type.to_s == "call" &&
-     (cond[2].source == "nil?" || cond[2].source == "length" || cond[2].source == "none?" \
-       || cond[2].source == "size" || cond[2].source == "present?" || cond[2].source == "empty?")
-    tokens = cond[0].source.split(".")
-    fields << tokens[0]
+  # self.field
+  if cond.type.to_s == "call" && cond.source.start_with?("self")
+    fields << cond.jump(:ident).source
     return true, fields
   end
   # lhs binop rhs
@@ -253,9 +279,29 @@ end
 def check_if_error_field(ast)
   conds = []
   fields = []
-  if (ast.type.to_s == "command_call" || ast.type.to_s == "call") && ast[0].source == "errors"
+  # puts "-------"
+  # puts ast.type.to_s
+  # puts ast.source
+  # puts ast.children.to_s
+  # puts "-------"
+  # errors[:base]
+  if ast.type.to_s == "return"
+    ret = check_if_error_field(ast[0])
+    return ret[0], ret[1], ret[2]
+  end
+  if ast.type.to_s == "list"
+    ret = check_if_error_field(ast[0])
+    return ret[0], ret[1], ret[2]
+  end
+  if (ast.type.to_s == "binary") && ast.source.start_with?("errors[")
     return true, [], []
   end
+  if (ast.type.to_s == "command_call" || ast.type.to_s == "call" || ast.type.to_s == "vcall") &&
+     ((ast[0].source.start_with? ("errors")) || (ast[0].source.start_with? ("self.errors")))
+    # puts "SUCCESS"
+    return true, [], []
+  end
+
   # puts ast.type.to_s
   if ast.type.to_s == "if" || ast.type.to_s == "if_mod" || ast.type.to_s == "unless_mod"
     # check conditions only contains fields
@@ -267,6 +313,8 @@ def check_if_error_field(ast)
     # puts ast.source + "   Condition OK"
     # puts "----------"
     # puts ast[1].source
+    # puts ast[1].type.to_s
+    # puts ast[1].children.to_s
     # puts "-----====-----"
     conds << ast[0]
     fields += ret[1]
@@ -294,12 +342,11 @@ def parse_if_error_pattern(ast)
   ast[2].children.each do |child|
     ret = check_if_error_field(child)
     if ret[0]
-      cs = Customized_constraint_if.new($cur_class.class_name, Random.rand(10).to_s, Constraint::MODEL, nil, nil)
+      # puts "Add customized to --" + $cur_class.class_name
+      # puts child.source
+      cs = Customized_constraint_if.new($cur_class.class_name, $cnt.to_s, Constraint::DB, nil, nil)
+      $cnt += 1
       cs.src = ast.source
-      if ret[1].length > 0
-        # puts ret[1].to_s
-        # puts "++++++++++++"
-      end
       cs.cond = ret[1]
       cs.fields = ret[2]
       $cur_class.addConstraints([cs])
@@ -311,7 +358,7 @@ def parse_event_cmd(ast)
   possible_fields = []
   ast = ast.jump(:do_block)
   if ast.children.length != 1
-    puts "[Error] even do block can only have one transition " + ast.children.to_
+    puts "[Error] even do block can only have one transition " + ast.children.to_s
   end
   ast = ast.children[0][0]
   if ast[0].source == "transition"
@@ -449,7 +496,7 @@ end
 def check_built_in_get_fields(ast)
   fields = []
   if ast.type.to_s == "call"
-    if !["many?", "first", "split", "downcase", "strip", "size"].include? ast[2].source
+    unless ["many?", "first", "split", "downcase", "strip", "size"].include? ast[2].source
       return false, []
     end
     fields << ast[0].source
@@ -822,7 +869,8 @@ def handle_validate(table, type, ast)
       if c.type.to_s == "symbol_literal"
         funcname = handle_symbol_literal_node(c)
         $cur_class.addValidateFunction(funcname)
-        con = Function_constraint.new(table, nil, type)
+        con = Function_constraint.new(table, $cnt.to_s, type)
+        $cnt += 1
         con.funcname = funcname
         constraints << con
       end

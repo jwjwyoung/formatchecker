@@ -89,10 +89,16 @@ def read_constraint_files(application_dir = nil, version = "")
       $module_name = ""
       $classes = []
       parse_model_constraint_file(ast)
-      model_classes[$cur_class.class_name] = $cur_class.dup
+      # puts $cur_class.filename.hash.to_s
+      # puts $cur_class.filename.hash.to_s + "-" + $cur_class.class_name
+      unless $cur_class.class_name.nil?
+        model_classes[$cur_class.class_name] = $cur_class.dup
+      end
       #puts "$cur_class.class_name #{$cur_class.class_name}"
       $classes.each do |c|
-        model_classes[c.class_name] = c
+        unless c.class_name
+          model_classes[c.class_name] = c
+        end
         # puts "add new class #{c.class_name} #{c.upper_class_name}"
       end
       # puts "add new class #{$cur_class.class_name} #{$cur_class.upper_class_name}"
@@ -189,6 +195,9 @@ def is_db_field(field, file)
   # puts file.has_many_classes.to_s
   # puts "[CHECK]----" + field + "  in " + file.class_name
   # puts file.getColumns.keys
+  if field == file.class_name
+    return true
+  end
   return (file.getColumns.key?(field)) || (file.getColumns.key?(field + "_id")) ||
            (file.getColumns.key?(field.split("_")[0]))
   # return true
@@ -196,16 +205,25 @@ end
 
 def check_customized_constraints(model_classes)
   model_classes.each do |key, file|
-    constraints = file.getConstraints().select { |k, v| k.include? "Customized_constraint_if" }
+    constraints = file.getConstraints().select { |k, v|
+      # puts k
+      k.include? "Customized_constraint_if"
+    }
+    if file.class_name == "User"
+      puts "---------_!!---------" + file.getConstraints().length.to_s
+    end
     constraints.each do |k, v|
       # check conditions of v
       if v.cond.empty?
+        # puts "*******" + file.class_name
+        # puts v.src
+        # puts "*******"
         file.removeConstraintByKey(k)
       end
       valid = true
       v.fields.each do |field|
         valid = false if !is_db_field(field, file)
-        if !is_db_field(field, file)
+        unless is_db_field(field, file)
           puts field + " is not db field in " + file.class_name
         end
       end
