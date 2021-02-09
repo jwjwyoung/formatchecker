@@ -156,9 +156,9 @@ def parse_model_constraint_file(ast, poly = false)
       $cur_class.addConstraints(cs) if cs.length > 0
     end
     if $cur_class.getValidateFunction().include? funcname
-      # puts "-----------"
-      # puts ast.source
-      # puts "-----------"
+      puts "-----------"
+      puts ast.source
+      puts "-----------"
       parse_if_error_pattern(ast)
     end
   end

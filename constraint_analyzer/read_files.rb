@@ -186,8 +186,8 @@ def read_html_file_ast(view_files)
 end
 
 def is_db_field(field, file)
-  puts file.has_many_classes.to_s
-  puts "[CHECK]----" + field + "  in " + file.class_name
+  # puts file.has_many_classes.to_s
+  # puts "[CHECK]----" + field + "  in " + file.class_name
   # puts file.getColumns.keys
   return (file.getColumns.key?(field)) || (file.getColumns.key?(field + "_id")) ||
            (file.getColumns.key?(field.split("_")[0]))
