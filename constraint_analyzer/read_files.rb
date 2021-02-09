@@ -186,9 +186,11 @@ def read_html_file_ast(view_files)
 end
 
 def is_db_field(field, file)
-  # puts "[CHECK]----" + field + "  in " + file.class_name
+  puts file.has_many_classes.to_s
+  puts "[CHECK]----" + field + "  in " + file.class_name
   # puts file.getColumns.keys
-  return (file.getColumns.key?(field)) || (file.getColumns.key?(field + "_id"))
+  return (file.getColumns.key?(field)) || (file.getColumns.key?(field + "_id")) ||
+           (file.getColumns.key?(field.split("_")[0]))
   # return true
 end
 
@@ -203,6 +205,9 @@ def check_customized_constraints(model_classes)
       valid = true
       v.fields.each do |field|
         valid = false if !is_db_field(field, file)
+        if !is_db_field(field, file)
+          puts field + " is not db field in " + file.class_name
+        end
       end
       file.removeConstraintByKey(k) if !valid
     end

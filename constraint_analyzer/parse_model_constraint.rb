@@ -210,29 +210,43 @@ def check_condition(cond)
   if cond.type.to_s == "int"
     return true, fields
   end
-  if cond.type.to_s == "call" && cond[2].source == "include?" && cond[3][0][0].type.to_s == "string_literal"
-    fields << cond[0].source
+  if cond.type.to_s == "call" &&
+     (cond[2].source == "include?" || cond[2].source == "end_with?") &&
+     cond[3][0][0].type.to_s == "string_literal"
+    if cond[0].source[-1] == "&"
+      field = cond[0].source[0..-1]
+    else
+      field = cond[0].source
+    end
+    fields << field
+    return true, fields
+  end
+  #  s(:unary, :!, s(:vcall, s(:ident, "discarded_at")))
+  if cond.type.to_s == "unary"
+    fields << cond[1].source
     return true, fields
   end
   # e = field.nil? or empty
   # s = s || e
   if cond.type.to_s == "call" &&
-     (cond[2].source == "nil?" || cond[2].source == "length" \
-       || cond[2].source == "size")
-    fields << cond[0].source
+     (cond[2].source == "nil?" || cond[2].source == "length" || cond[2].source == "none?" \
+       || cond[2].source == "size" || cond[2].source == "present?" || cond[2].source == "empty?")
+    tokens = cond[0].source.split(".")
+    fields << tokens[0]
     return true, fields
   end
   # lhs binop rhs
   # lhs or rhs can be constant
-  lhs_ret = if cond.type.to_s == "binary"
-      lhs_ret = check_condition(cond[0])
-      rhs_ret = check_condition(cond[2])
-      if lhs_ret[0] && rhs_ret[0]
-        fields += lhs_ret[1] + rhs_ret[1]
-        return true, fields
-      end
-      # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }
+  if cond.type.to_s == "binary"
+    # puts cond[1].to_s + "======="
+    lhs_ret = check_condition(cond[0])
+    rhs_ret = check_condition(cond[2])
+    if lhs_ret[0] && rhs_ret[0]
+      fields += lhs_ret[1] + rhs_ret[1]
+      return true, fields
     end
+    # return [{ "opt" => cond[1], "lhs" => cond[0].source, "rhs" => cond[2].source }
+  end
   return false, []
 end
 
@@ -250,6 +264,10 @@ def check_if_error_field(ast)
       # puts ast.source + "   Condition not OK"
       return false, [], []
     end
+    # puts ast.source + "   Condition OK"
+    # puts "----------"
+    # puts ast[1].source
+    # puts "-----====-----"
     conds << ast[0]
     fields += ret[1]
     # puts "check body---" + ast[1].type.to_s
