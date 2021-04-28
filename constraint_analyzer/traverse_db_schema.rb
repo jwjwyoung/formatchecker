@@ -45,8 +45,9 @@ class Version_class
           yield :tab_add, key
         else
           # Rename table: has prev_class_name
-          yield :tab_ren, key, file.prev_class_name
+          puts "rename #{key} #{file.prev_class_name}"
           renamed_tab << file.prev_class_name
+          yield :tab_ren, key, file.prev_class_name
         end
         next
       end
@@ -216,15 +217,18 @@ def get_versions(app_dir, interval)
   # Parallel.map(versions) { |v| load_version(version_his_folder, v) }
 end
 
-def traverse_all_for_db_schema(app_dir, interval = nil)
-  versions = get_versions(app_dir, interval)
+def traverse_all_for_db_schema(app_dir, interval = nil, versions=[])
+  if versions.size == 0
+    versions = get_versions(app_dir, interval)
+  end
+
   app_name = File.basename(app_dir)
   version_his_folder = File.expand_path("../log/vhf_#{app_name}", __dir__)
   Dir.mkdir(version_his_folder) unless Dir.exist? version_his_folder
   puts("LENGTH: #{versions.length}")
   return if versions.length <= 0
 
-  versions << Version_class.new(app_dir, "00000000")
+  # versions << Version_class.new(app_dir, "00000000")
   # version and it's change counts
   version_chg = []
   # number of versions that include an action
@@ -247,16 +251,18 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
     shortvo = shorten_commit(curv.commit)
     newv.to_schema()
     change = {}
-    [:tab_del, :tab_ren, :col_ren, :col_del].each do |action| 
+    [:tab_del, :col_del].each do |action| 
       change[action] = []
     end
+    change[:col_ren] = {}
+    change[:tab_ren] = {}
     newv.compare_db_schema(curv) do |action, table, *args|
       case action
       when :tab_del
         change[action] << "#{table}"
         puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table}"   
       when :tab_ren
-        change[action] << "#{args[0]}"
+        change[action][args[0]] = table
       when :col_ren, :col_del, :col_type, :col_add
         col = args[0]
         column_changes[table][col] += 1 unless action == :col_add
@@ -267,7 +273,7 @@ def traverse_all_for_db_schema(app_dir, interval = nil)
         end
         if action == :col_ren
           puts "#{shortvo} #{shortv} \e[31;1m#{action}\e[37;0m #{table} #{args}"         
-          change[action] << "#{table}_#{args[-1]}"
+          change[action]["#{table}_#{args[-1]}"] = args[1]
           puts change
         end
       when :fk_del, :has_one_del, :has_many_del

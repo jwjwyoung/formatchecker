@@ -382,11 +382,19 @@ def handle_rename_table(ast)
   old_class_name = convert_tablename(old_table_name)
   new_class_name = convert_tablename(new_table_name)
   # puts "n: #{new_class_name} o: #{old_class_name}" if $debug_mode
-  old_class = $model_classes[old_table_name]
+  old_class = $model_classes[old_class_name]
   old_class ||= $dangling_classes[old_class_name]
   new_class = $model_classes[new_class_name]
+  # handle cases that model class hasn't been renamed
+  if new_class.nil?
+    puts "new_class is nil #{new_class.nil?} #{$model_classes.include?new_class_name}"
+    old_class.prev_class_name = old_class_name
+    old_class.class_name = new_class_name
+    $model_classes.delete(old_class_name)
+    $model_classes[new_class_name] = old_class
+  end
+  puts "new classes #{$model_classes.keys}"
   return unless old_class && new_class
-
   old_class.getColumns.each do |_k, v|
     new_class.addColumn(v)
     v.table_class = new_class

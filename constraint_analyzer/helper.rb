@@ -30,10 +30,10 @@ def convert_tablename(name)
   end
   _word_list.push(_name.join)
   _word_list.each do |w|
-    w[0] = w[0].capitalize
+    w[0] = w[0]&.capitalize
   end
-  _word_list[-1] = _word_list[-1].singularize
-  temp_name = _word_list.join
+  _word_list[-1] = _word_list[-1]&.singularize
+  temp_name = _word_list&.join
   return temp_name
 end
 

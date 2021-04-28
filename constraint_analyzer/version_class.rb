@@ -1,6 +1,6 @@
 class Version_class
   attr_accessor :app_dir, :commit, :total_constraints_num, :db_constraints_num, :model_constraints_num,
-                :html_constraints_num, :loc, :activerecord_files, :validation_functions, :concerns, :queries, :scope, :schema
+                :html_constraints_num, :loc, :activerecord_files, :validation_functions, :concerns, :queries, :scope, :schema, :raw_queries
 
   def initialize(app_dir, commit)
     @app_dir = app_dir
@@ -161,7 +161,7 @@ class Version_class
 
   def print_columns
     # puts"---------------columns-----------------"
-    get_activerecord_files.each do |_key, file|
+    get_activerecord_files.each do |key, file|
       # puts"#{key} #{file.getColumns.length}"
       file.getColumns.each do |key, column|
         # puts"\t#{column.column_name}"

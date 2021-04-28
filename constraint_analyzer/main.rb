@@ -15,8 +15,6 @@ require_relative "./ast_handler.rb"
 require_relative "./traverse_db_schema.rb"
 require_relative "./parse_concerns.rb"
 require_relative "./check_pattern.rb"
-require "/Users/junwenyang/Research/query_constraint_analyzer/query_parser_with_sql.rb"
-require "/Users/junwenyang/Research/query_constraint_analyzer/load.rb"
 require "optparse"
 require "yard"
 require "active_support"
@@ -25,6 +23,9 @@ require "active_support/core_ext/string"
 require "regexp-examples"
 load_validate_api # load the model api
 load_html_constraint_api # load the html api
+
+require "/Users/junwenyang/Research/query_constraint_analyzer/query_parser_with_sql.rb"
+require "/Users/junwenyang/Research/query_constraint_analyzer/load.rb"
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: main.rb -a APP_DIR [options]"

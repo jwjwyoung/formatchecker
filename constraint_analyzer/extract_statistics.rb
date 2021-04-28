@@ -51,9 +51,9 @@ def median(array)
   end
 end
 
-def extract_commits(directory, interval = nil, tag_unit = true)
+def extract_commits(directory, interval = nil, tag_unit = true, branch='master')
   # reset to the most up to date commit
-  `git -C '#{directory}' checkout -fq master`
+  `git -C '#{directory}' checkout -fq #{branch}`
 
   tags = `git -C '#{directory}' for-each-ref --format '%(refname)' refs/tags | ./sort-versions.py`
   unless $CHILD_STATUS.success?
