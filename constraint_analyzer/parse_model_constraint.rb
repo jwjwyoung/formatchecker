@@ -1,4 +1,5 @@
 $cnt = 0
+$has_one_cnt = 0
 
 def parse_model_constraint_file(ast, poly = false)
   if ast.type.to_s == "list"
@@ -110,6 +111,9 @@ def parse_model_constraint_file(ast, poly = false)
         columns.each do |column|
           $cur_class.has_one_classes[column] = dic["dependent"] ? true : false
           $cur_class.addRelation(column, dic, "has_one")
+          $has_one_cnt += 1
+          puts ast.source
+          puts $has_one_cnt.to_s + "----------------"
         end
         if dic.has_key? "as"
           $cur_class.addHasManyAs(handle_symbol_literal_node(dic["as"]))
@@ -145,6 +149,7 @@ def parse_model_constraint_file(ast, poly = false)
       end
     end
     if funcname == "state_machine"
+      puts ast.source
       # puts ast.source
       rets = parse_state_field(ast[1][0])
       column = rets[0]
@@ -213,10 +218,23 @@ def check_condition(cond)
   # puts cond.source
   # puts cond.children.to_s
   # puts "------"
+  # hide_results_until_closed_changed
+  # hide_results_until_closed_changed
+  if ["fcall", "vcall"].include? (cond.type.to_s)
+    tokens = cond.source.split("_")
+    # puts tokens.to_s
+    ret = ["was"].select { |e| tokens[-1].include?(e) }
+    unless ret
+      field = tokens[0..-2].join("_")
+      fields << field
+      return true, fields
+    end
+  end
+
   if cond.type.to_s == "string_literal"
     return true, fields
   end
-  if cond.type.to_s == "var_ref" && cond.source.upcase == cond.source
+  if cond.type.to_s == "var_ref" && (cond.source.upcase == cond.source || cond.source.upcase == "TRUE")
     return true, fields
   end
   if cond.type.to_s == "string_content" \
@@ -236,7 +254,7 @@ def check_condition(cond)
   # s = s || e
   if cond.type.to_s == "call" &&
      (["nil?", "length", "none?", "size", "present?",
-       "empty?", "blank?", "any?", "strip", "count"].include? cond[2].source)
+       "empty?", "blank?", "any?", "strip", "count", "to_s", "to_i", "to_f"].include? cond[2].source)
     tokens = cond[0].source.split(".")
     tokens.each do |token|
       if token != "self"
@@ -247,7 +265,8 @@ def check_condition(cond)
   end
 
   if cond.type.to_s == "call" &&
-     ((cond[2].source.start_with?("include?")) ||
+     ((cond[2].source.start_with?("match?")) ||
+      (cond[2].source.start_with?("include?")) ||
       (cond[2].source.start_with? ("end_with?")) ||
       (cond[2].source.start_with? ("ends_with?")) ||
       (cond[2].source == "count") && cond[3][0][0].type.to_s == "string_literal")

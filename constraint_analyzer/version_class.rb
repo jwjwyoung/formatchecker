@@ -462,6 +462,12 @@ class Version_class
   def get_model_constraints
     total_constraints = @activerecord_files.map { |_k, v| v.getConstraints.length }.reduce(:+)
     output = []
+    presence_cnt = 0
+    inclusion_cnt = 0
+    uniqueness_cnt = 0
+    format_cnt = 0
+    length_cnt = 0
+    exclusion_cnt = 0
     @activerecord_files.each do |_key, file|
       constraints = file.getConstraints
       model_cons = constraints.select { |k, _v| k.include? "-#{Constraint::MODEL}" }
@@ -470,15 +476,32 @@ class Version_class
         exists_in_db = (db_cons[k.gsub("-#{Constraint::MODEL}", "-#{Constraint::DB}")] != nil)
         if v.instance_of? Presence_constraint
           output << { type: :presence, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          presence_cnt += 1
         elsif v.instance_of? Inclusion_constraint
           output << { type: :inclusion, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          inclusion_cnt += 1
         elsif v.instance_of? Uniqueness_constraint
           output << { type: :uniqueness, table: v.table, fields: [v.column] + v.scope, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          uniqueness_cnt += 1
         elsif v.instance_of? Format_constraint
           output << { type: :format, table: v.table, fields: v.column, exists_in_db: exists_in_db, value: v.with_format, if_cond: v.if_cond }
+          format_cnt += 1
+        elsif v.instance_of? Length_constraint
+          output << { type: :length, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          length_cnt += 1
+        elsif v.instance_of? Exclusion_constraint
+          output << { type: :exclusion, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          exclusion_cnt += 1
         end
+
       end
     end
+    puts "Presence --- %d " %presence_cnt
+    puts "Inclusion --- %d " %inclusion_cnt
+    puts "Exclusion --- %d " %exclusion_cnt
+    puts "Uniqueness --- %d " %uniqueness_cnt
+    puts "Format --- %d " %format_cnt
+    puts "Length --- %d " %length_cnt
     output
   end
 
@@ -621,6 +644,7 @@ class Version_class
     extract_files
     annotate_model_class
     extract_constraints
+    extract_poly_constraints
     apply_concerns
     print_columns
     #extract_queries
@@ -629,6 +653,7 @@ class Version_class
     rescue StandardError
     end
     extract_validate_functions
+    get_model_constraints
   end
 
   def apply_concerns

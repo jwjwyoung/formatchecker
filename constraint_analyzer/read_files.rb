@@ -40,7 +40,7 @@ def read_constraint_files(application_dir = nil, version = "")
     next if filename.include?("vendor/bundle/") || filename.include?("spec/fixtures")
 
     # filter out garbage in diaspora/app/assets
-    if filename.include?("app/models/") && filename.ends_with?(".rb")
+    if filename.include?("app/models/") && filename.ends_with?(".rb") && (not filename.include? "/test/")
       if filename.include?("app/models/concerns/")
         concern_files << filename
       else
@@ -183,10 +183,44 @@ def read_html_file_ast(view_files)
   end
 end
 
-def is_db_field(field, file)
-  # puts file.has_many_classes.to_s
-  # puts "[CHECK]----" + field + "  in " + file.class_name
+def is_db_field(field, files)
+  # files.each do |f|
+  #   puts f.class_name
+  # end
+  files.each do |file|
+    return true if is_db_field_helper(field, file)
+  end
+  return false
+end
+
+def is_db_field_helper(field, file)
+  field = field[0..-2] if field[-1] == "?"
+  # # puts file.has_many_classes.keys.to_s
+  # puts file.has_many_classes.keys.to_s
+  # puts "[CHECK]----" + field + " in " + file.class_name
+  # # puts (file.has_many_classes.keys.include? (field[0..-2]))
   # puts file.getColumns.keys
+
+  if field == "id"
+    return true
+  end
+
+  # field is a bultin
+  if (["to_s", "nil?", "length", "none?", "size", "present?", "downcase",
+       "empty?", "blank?", "any?", "strip", "count", "split", "to_s", "to_i", "to_f"].include? (field.split("(")[0]))
+    return true
+  end
+
+  if field.upcase == field
+    return true
+  end
+
+  if (file.has_many_classes.keys.include? field) || (file.has_many_classes.keys.include? (field[0..-2])) ||
+     (file.has_one_classes.keys.include? field) || (file.has_one_classes.keys.include? (field[0..-2]))
+    puts "[SUCCESS]----" + field[0..-2] + "  in " + file.class_name
+    return true
+  end
+
   if field == file.class_name
     return true
   end
@@ -195,15 +229,27 @@ def is_db_field(field, file)
   # return true
 end
 
+def get_potential_files(name, model_classes)
+  f = []
+  model_classes.each do |key, file|
+    unless file.class_name.nil?
+      if file.class_name.include? name
+        f << file
+      end
+    end
+  end
+  f
+end
+
 def check_customized_constraints(model_classes)
   model_classes.each do |key, file|
     constraints = file.getConstraints().select { |k, v|
       # puts k
       k.include? "Customized_constraint_if"
     }
-    if file.class_name == "User"
-      puts "---------_!!---------" + file.getConstraints().length.to_s
-    end
+    # if file.class_name == "User"
+    #   puts "---------_!!---------" + file.filename
+    # end
     constraints.each do |k, v|
       # check conditions of v
       if v.cond.empty?
@@ -214,8 +260,9 @@ def check_customized_constraints(model_classes)
       end
       valid = true
       v.fields.each do |field|
-        valid = false if !is_db_field(field, file)
-        unless is_db_field(field, file)
+        potential_files = get_potential_files(file.class_name, model_classes)
+        valid = false if !is_db_field(field, potential_files)
+        unless is_db_field(field, potential_files)
           puts field + " is not db field in " + file.class_name
         end
       end
