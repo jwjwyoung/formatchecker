@@ -502,6 +502,7 @@ class Version_class
     puts "Uniqueness --- %d " %uniqueness_cnt
     puts "Format --- %d " %format_cnt
     puts "Length --- %d " %length_cnt
+    puts "Total----%d" %total_constraints
     output
   end
 
