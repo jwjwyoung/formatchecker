@@ -468,9 +468,23 @@ class Version_class
     format_cnt = 0
     length_cnt = 0
     exclusion_cnt = 0
+
+    absence_cnt = 0
+    numericality_cnt = 0
+    confirmation_cnt = 0
+    acceptance_cnt = 0
+    function_cnt = 0
+    customized_cnt = 0
+    customized_if_cnt = 0
+    hasmany_cnt = 0
+    fd_cnt = 0
+
+    total_cnt = 0
+
     @activerecord_files.each do |_key, file|
       constraints = file.getConstraints
       model_cons = constraints.select { |k, _v| k.include? "-#{Constraint::MODEL}" }
+      total_cnt += model_cons.length
       db_cons = file.getConstraints.select { |k, _v| k.include? "-#{Constraint::DB}" }
       model_cons.each do |k, v|
         exists_in_db = (db_cons[k.gsub("-#{Constraint::MODEL}", "-#{Constraint::DB}")] != nil)
@@ -492,6 +506,34 @@ class Version_class
         elsif v.instance_of? Exclusion_constraint
           output << { type: :exclusion, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
           exclusion_cnt += 1
+
+        elsif v.instance_of? Numericality_constraint
+          output << { type: :numericality, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          numericality_cnt += 1
+
+        elsif v.instance_of? Confirmation_constraint
+          output << { type: :confirmation, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          confirmation_cnt += 1
+
+        elsif v.instance_of? Acceptance_constraint
+          output << { type: :acceptance, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          acceptance_cnt += 1
+
+        elsif v.instance_of? Function_constraint
+          output << { type: :function, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          function_cnt += 1
+
+        elsif v.instance_of? Customized_constraint
+          output << { type: :customized, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          customized_cnt += 1
+
+        elsif v.instance_of? Customized_constraint_if
+          output << { type: :customized_if, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          customized_if_cnt += 1
+        
+        elsif v.instance_of? HasMany_constraint
+          output << { type: :hasmany, table: v.table, fields: v.column, exists_in_db: exists_in_db, if_cond: v.if_cond }
+          hasmany_cnt += 1
         end
 
       end
@@ -502,7 +544,15 @@ class Version_class
     puts "Uniqueness --- %d " %uniqueness_cnt
     puts "Format --- %d " %format_cnt
     puts "Length --- %d " %length_cnt
-    puts "Total----%d" %total_constraints
+    puts "Numericality --- %d" % numericality_cnt
+    puts "Confirmation --- %d" % confirmation_cnt
+    puts "Acceptance --- %d" % acceptance_cnt
+    puts "Function --- %d" % function_cnt
+    puts "Customized --- %d" % customized_cnt
+    puts "Customized if --- %d" % customized_if_cnt
+    puts "Has many --- %d" % hasmany_cnt
+
+    puts "Total----%d" %total_cnt
     output
   end
 
